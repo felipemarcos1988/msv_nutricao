@@ -87,23 +87,23 @@ body {
 
 .auth-logo-wrapper {
   display: inline-block;
-  background: #ffffff;
-  padding: 1.25rem 2rem;
-  border-radius: var(--radius-lg);
-  margin-bottom: 1.5rem;
-  box-shadow: 0 4px 20px rgba(255, 255, 255, 0.15);
+  background: transparent;
+  padding: 0.25rem;
+  margin-bottom: 1rem;
   transition: transform var(--transition-fast);
 }
 
 .auth-logo-wrapper:hover {
-  transform: scale(1.03);
+  transform: scale(1.04);
 }
 
 .auth-logo {
-  height: 130px;
+  height: 140px;
   width: auto;
   object-fit: contain;
   display: block;
+  margin: 0 auto;
+  filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.4));
 }
 
 .auth-title {
@@ -300,10 +300,10 @@ body {
 }
 
 .dashboard-logo {
-  height: 52px;
-  background: #fff;
-  padding: 6px 12px;
-  border-radius: 8px;
+  height: 48px;
+  width: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3));
 }
 
 .btn-secondary {
