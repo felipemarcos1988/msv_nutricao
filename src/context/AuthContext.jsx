@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { getSession, signIn, signUp, signOut } from '../services/neonAuth';
+import { fetchUserProfile, syncUserRole } from '../services/neonDb';
 
 const AuthContext = createContext(null);
 
@@ -8,12 +9,33 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const enrichUserWithProfile = async (baseUser) => {
+    if (!baseUser || !baseUser.email) return baseUser;
+    try {
+      const profile = await fetchUserProfile(baseUser.email);
+      if (profile) {
+        return {
+          ...baseUser,
+          ...profile,
+          role: profile.role || 'nutricionista',
+        };
+      }
+    } catch (e) {
+      console.warn('Could not enrich user profile from Neon:', e);
+    }
+    return {
+      ...baseUser,
+      role: baseUser.role || 'nutricionista',
+    };
+  };
+
   const checkAuthSession = async () => {
     try {
       setLoading(true);
       const sessionData = await getSession();
       if (sessionData && sessionData.user) {
-        setUser(sessionData.user);
+        const enriched = await enrichUserWithProfile(sessionData.user);
+        setUser(enriched);
         setSession(sessionData.session || sessionData);
       } else {
         setUser(null);
@@ -32,28 +54,44 @@ export function AuthProvider({ children }) {
     checkAuthSession();
   }, []);
 
-  const loginUser = async (email, password) => {
+  const loginUser = async (email, password, expectedRole = null) => {
     const res = await signIn({ email, password });
-    if (res?.user) {
-      setUser(res.user);
-      setSession(res.session || res);
+    const rawUser = res?.user || (await getSession())?.user;
+    
+    if (rawUser) {
+      // Se um perfil for especificado no login e o usuário ainda não tiver role definida no banco, sincroniza
+      if (expectedRole) {
+        const profile = await fetchUserProfile(email);
+        if (!profile || !profile.role) {
+          await syncUserRole(email, expectedRole);
+        }
+      }
+      const enriched = await enrichUserWithProfile(rawUser);
+      setUser(enriched);
+      setSession(res?.session || res);
+      return { ...res, user: enriched };
     } else {
-      // Re-fetch session to ensure cookie state updated correctly
       await checkAuthSession();
+      return res;
     }
-    return res;
   };
 
-  const registerUser = async (name, email, password) => {
+  const registerUser = async (name, email, password, role = 'nutricionista') => {
     const res = await signUp({ name, email, password });
-    if (res?.user) {
-      setUser(res.user);
-      setSession(res.session || res);
+    
+    // Sincroniza o papel do usuário (Nutricionista ou Paciente) diretamente no Neon DB
+    await syncUserRole(email, role);
+
+    const rawUser = res?.user || (await getSession())?.user;
+    if (rawUser) {
+      const enriched = await enrichUserWithProfile({ ...rawUser, role });
+      setUser(enriched);
+      setSession(res?.session || res);
+      return { ...res, user: enriched };
     } else {
-      // Re-fetch session
       await checkAuthSession();
+      return res;
     }
-    return res;
   };
 
   const logoutUser = async () => {

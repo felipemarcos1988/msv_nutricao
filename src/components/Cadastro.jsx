@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Eye, EyeOff, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Eye, EyeOff, AlertCircle, Stethoscope, User } from 'lucide-react';
 
 export function Cadastro({ onSwitchToLogin }) {
   const { register } = useAuth();
+  const [role, setRole] = useState('nutricionista'); // 'nutricionista' | 'paciente'
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -33,7 +34,7 @@ export function Cadastro({ onSwitchToLogin }) {
 
     try {
       setSubmitting(true);
-      await register(nome.trim(), email.trim(), password);
+      await register(nome.trim(), email.trim(), password, role);
     } catch (err) {
       setError(err.message || 'Falha ao criar conta. Tente novamente.');
     } finally {
@@ -48,8 +49,37 @@ export function Cadastro({ onSwitchToLogin }) {
           <div className="auth-logo-wrapper">
             <img src="/logo.png" alt="MSV Nutri Logo" className="auth-logo" />
           </div>
+
+          {/* Seletor de Perfil (Nutricionista vs Paciente) */}
+          <div className="role-selector" role="tablist" aria-label="Selecione o tipo de cadastro">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={role === 'nutricionista'}
+              className={`role-tab ${role === 'nutricionista' ? 'active' : ''}`}
+              onClick={() => { setRole('nutricionista'); setError(''); }}
+            >
+              <Stethoscope size={16} />
+              <span>Nutricionista</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={role === 'paciente'}
+              className={`role-tab ${role === 'paciente' ? 'active' : ''}`}
+              onClick={() => { setRole('paciente'); setError(''); }}
+            >
+              <User size={16} />
+              <span>Paciente</span>
+            </button>
+          </div>
+
           <h1 className="auth-title">Criar Conta</h1>
-          <p className="auth-subtitle">Cadastre-se como Nutricionista no MSV Nutrição</p>
+          <p className="auth-subtitle">
+            {role === 'nutricionista'
+              ? 'Cadastre-se como Nutricionista no MSV Nutrição'
+              : 'Cadastre-se como Paciente para acompanhar sua nutrição'}
+          </p>
         </div>
 
         {error && (
@@ -61,12 +91,14 @@ export function Cadastro({ onSwitchToLogin }) {
 
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">
-            <label className="form-label" htmlFor="nome-input">Nome Completo</label>
+            <label className="form-label" htmlFor="nome-input">
+              {role === 'nutricionista' ? 'Nome Completo / Profissional' : 'Nome Completo'}
+            </label>
             <input
               id="nome-input"
               type="text"
               className="form-input"
-              placeholder="Dra. Maria Silva"
+              placeholder={role === 'nutricionista' ? 'Dra. Maria Silva' : 'Seu Nome Completo'}
               value={nome}
               onChange={(e) => setNome(e.target.value)}
               disabled={submitting}
@@ -75,12 +107,14 @@ export function Cadastro({ onSwitchToLogin }) {
           </div>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="cad-email-input">E-mail Profissional</label>
+            <label className="form-label" htmlFor="cad-email-input">
+              {role === 'nutricionista' ? 'E-mail Profissional' : 'Seu E-mail'}
+            </label>
             <input
               id="cad-email-input"
               type="email"
               className="form-input"
-              placeholder="nutri@exemplo.com"
+              placeholder={role === 'nutricionista' ? 'nutri@exemplo.com' : 'seu.email@exemplo.com'}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={submitting}
@@ -139,7 +173,7 @@ export function Cadastro({ onSwitchToLogin }) {
                 <span>Criando conta...</span>
               </>
             ) : (
-              'Criar conta'
+              `Cadastrar como ${role === 'nutricionista' ? 'Nutricionista' : 'Paciente'}`
             )}
           </button>
         </form>

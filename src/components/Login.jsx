@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Eye, EyeOff, Mail, Lock, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, UserCheck, Stethoscope, User, AlertCircle } from 'lucide-react';
 
 export function Login({ onSwitchToCadastro }) {
   const { login } = useAuth();
+  const [role, setRole] = useState('nutricionista'); // 'nutricionista' | 'paciente'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -21,7 +22,7 @@ export function Login({ onSwitchToCadastro }) {
 
     try {
       setSubmitting(true);
-      await login(email, password);
+      await login(email.trim(), password, role);
     } catch (err) {
       setError(err.message || 'Falha ao realizar login. Verifique seus dados.');
     } finally {
@@ -36,8 +37,39 @@ export function Login({ onSwitchToCadastro }) {
           <div className="auth-logo-wrapper">
             <img src="/logo.png" alt="MSV Nutri Logo" className="auth-logo" />
           </div>
-          <h1 className="auth-title">Acesse sua conta</h1>
-          <p className="auth-subtitle">Sistema de Gestão para Nutricionistas</p>
+
+          {/* Seletor de Perfil (Nutricionista vs Paciente) */}
+          <div className="role-selector" role="tablist" aria-label="Selecione o tipo de login">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={role === 'nutricionista'}
+              className={`role-tab ${role === 'nutricionista' ? 'active' : ''}`}
+              onClick={() => { setRole('nutricionista'); setError(''); }}
+            >
+              <Stethoscope size={16} />
+              <span>Nutricionista</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={role === 'paciente'}
+              className={`role-tab ${role === 'paciente' ? 'active' : ''}`}
+              onClick={() => { setRole('paciente'); setError(''); }}
+            >
+              <User size={16} />
+              <span>Paciente</span>
+            </button>
+          </div>
+
+          <h1 className="auth-title">
+            {role === 'nutricionista' ? 'Acesse sua conta' : 'Portal do Paciente'}
+          </h1>
+          <p className="auth-subtitle">
+            {role === 'nutricionista'
+              ? 'Sistema de Gestão para Nutricionistas'
+              : 'Acesse suas orientações e acompanhamento nutricional'}
+          </p>
         </div>
 
         {error && (
@@ -49,13 +81,15 @@ export function Login({ onSwitchToCadastro }) {
 
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">
-            <label className="form-label" htmlFor="email-input">E-mail</label>
+            <label className="form-label" htmlFor="email-input">
+              {role === 'nutricionista' ? 'E-mail Profissional' : 'E-mail do Paciente'}
+            </label>
             <div className="input-wrapper">
               <input
                 id="email-input"
                 type="email"
                 className="form-input"
-                placeholder="seu.email@exemplo.com"
+                placeholder={role === 'nutricionista' ? 'nutri@exemplo.com' : 'seu.email@exemplo.com'}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={submitting}
@@ -99,7 +133,7 @@ export function Login({ onSwitchToCadastro }) {
                 <span>Entrando...</span>
               </>
             ) : (
-              'Entrar'
+              `Entrar como ${role === 'nutricionista' ? 'Nutricionista' : 'Paciente'}`
             )}
           </button>
         </form>
