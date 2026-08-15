@@ -300,15 +300,15 @@ body {
 }
 
 .dashboard-logo {
-  height: 96px;
+  height: 200px;
   width: auto;
   object-fit: contain;
-  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4));
+  filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.4));
   transition: transform var(--transition-fast);
 }
 
 .dashboard-logo:hover {
-  transform: scale(1.03);
+  transform: scale(1.02);
 }
 
 .btn-secondary {
