@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getPacientesByNutri } from '../services/neonDb';
-import { Search, UserPlus, Phone, Mail, User, Eye, RefreshCw, Calendar } from 'lucide-react';
+import { Search, UserPlus, Phone, Mail, User, Users, Eye, RefreshCw, Calendar } from 'lucide-react';
 
 export function PacientesView({ onSelectPaciente }) {
   const { user } = useAuth();
@@ -55,6 +55,10 @@ export function PacientesView({ onSelectPaciente }) {
       {/* Header da Seção */}
       <div className="view-header">
         <div>
+          <div className="hero-greeting">
+            <Users size={16} className="sparkle-icon" />
+            <span>Gestão de Pacientes</span>
+          </div>
           <h2 className="view-title">Pacientes</h2>
           <p className="view-subtitle">
             Gerenciamento de todos os pacientes vinculados ao seu consultório
