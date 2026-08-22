@@ -1575,4 +1575,105 @@ body::before {
   .pacientes-grid {
     grid-template-columns: 1fr;
   }
+
+  .pwa-install-banner {
+    left: 1rem;
+    right: 1rem;
+    bottom: 1rem;
+    flex-wrap: wrap;
+  }
 }
+
+/* ==========================================================================
+   PWA Install Banner
+   ========================================================================== */
+.pwa-install-banner {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.9rem 1.25rem;
+  background: rgba(18, 18, 21, 0.95);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border-focus);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  animation: slideDown 0.3s ease-out;
+  max-width: 480px;
+}
+
+.pwa-install-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--emerald-text);
+  border: 1px solid var(--emerald-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.pwa-install-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 1;
+}
+
+.pwa-install-info strong {
+  font-size: 0.9rem;
+  color: #ffffff;
+}
+
+.pwa-install-info span {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.pwa-install-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-pwa-install {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.9rem;
+  background: #ffffff;
+  color: #09090b;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-pwa-install:hover {
+  background: #e4e4e7;
+  transform: translateY(-1px);
+}
+
+.btn-pwa-dismiss {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.35rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.btn-pwa-dismiss:hover {
+  color: #ffffff;
+}
+

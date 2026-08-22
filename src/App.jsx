@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { Login } from './components/Login';
 import { Cadastro } from './components/Cadastro';
 import { Dashboard } from './components/Dashboard';
+import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 
 function MainApp() {
   const { user, loading } = useAuth();
@@ -17,18 +18,21 @@ function MainApp() {
     );
   }
 
-  if (user) {
-    return <Dashboard />;
-  }
-
   return (
-    <div className="auth-page-wrapper">
-      {authMode === 'login' ? (
-        <Login onSwitchToCadastro={() => setAuthMode('cadastro')} />
+    <>
+      {user ? (
+        <Dashboard />
       ) : (
-        <Cadastro onSwitchToLogin={() => setAuthMode('login')} />
+        <div className="auth-page-wrapper">
+          {authMode === 'login' ? (
+            <Login onSwitchToCadastro={() => setAuthMode('cadastro')} />
+          ) : (
+            <Cadastro onSwitchToLogin={() => setAuthMode('login')} />
+          )}
+        </div>
       )}
-    </div>
+      <PWAInstallPrompt />
+    </>
   );
 }
 
