@@ -64,18 +64,6 @@ export function PacientesView({ onSelectPaciente }) {
             Gerenciamento de todos os pacientes vinculados ao seu consultório
           </p>
         </div>
-        <div className="view-header-actions">
-          <button
-            type="button"
-            className="btn-secondary refresh-btn"
-            onClick={handleRefresh}
-            disabled={refreshing || loading}
-            title="Atualizar lista em tempo real"
-          >
-            <RefreshCw size={16} className={refreshing ? 'spinning' : ''} />
-            <span>Atualizar</span>
-          </button>
-        </div>
       </div>
 
       {/* Barra de Busca e Filtros */}
