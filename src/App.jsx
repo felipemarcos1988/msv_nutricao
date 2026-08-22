@@ -21,10 +21,14 @@ function MainApp() {
     return <Dashboard />;
   }
 
-  return authMode === 'login' ? (
-    <Login onSwitchToCadastro={() => setAuthMode('cadastro')} />
-  ) : (
-    <Cadastro onSwitchToLogin={() => setAuthMode('login')} />
+  return (
+    <div className="auth-page-wrapper">
+      {authMode === 'login' ? (
+        <Login onSwitchToCadastro={() => setAuthMode('cadastro')} />
+      ) : (
+        <Cadastro onSwitchToLogin={() => setAuthMode('login')} />
+      )}
+    </div>
   );
 }
 

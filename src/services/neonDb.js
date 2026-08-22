@@ -57,6 +57,121 @@ export async function getPacientesByNutri(nutricionistaId) {
 }
 
 /**
+ * Obtém as métricas em tempo real para o Dashboard do Nutricionista
+ */
+export async function getDashboardMetrics(nutricionistaId) {
+  if (!nutricionistaId) {
+    return {
+      totalPacientes: 0,
+      consultasSemana: 0,
+      pacientesSemRetorno: [],
+    };
+  }
+
+  try {
+    // 1. Total de pacientes ativos do nutricionista
+    const totalPacientesRes = await sql`
+      SELECT COUNT(*)::int AS total
+      FROM public.pacientes
+      WHERE nutricionista_id = ${nutricionistaId}
+    `;
+    const totalPacientes = totalPacientesRes[0]?.total || 0;
+
+    // 2. Consultas da semana atual (segunda-feira a domingo)
+    const consultasSemanaRes = await sql`
+      SELECT COUNT(*)::int AS total
+      FROM public.consultas c
+      JOIN public.pacientes p ON c.paciente_id = p.id
+      WHERE p.nutricionista_id = ${nutricionistaId}
+        AND c.data_consulta >= date_trunc('week', CURRENT_DATE)::date
+        AND c.data_consulta <= (date_trunc('week', CURRENT_DATE) + INTERVAL '6 days')::date
+    `;
+    const consultasSemana = consultasSemanaRes[0]?.total || 0;
+
+    // 3. Pacientes sem retorno:
+    // cuja última consulta foi há mais de 30 dias e que não possuem próximo retorno agendado
+    const semRetornoRes = await sql`
+      WITH ultimas_consultas AS (
+        SELECT 
+          paciente_id,
+          MAX(data_consulta) AS ultima_data_consulta,
+          MAX(proximo_retorno) AS ultimo_proximo_retorno
+        FROM public.consultas
+        GROUP BY paciente_id
+      )
+      SELECT 
+        p.id,
+        p.nome,
+        p.email,
+        p.whatsapp,
+        p.objetivo_texto,
+        p.peso_inicial,
+        p.altura,
+        uc.ultima_data_consulta,
+        uc.ultimo_proximo_retorno,
+        (CURRENT_DATE - uc.ultima_data_consulta)::int AS dias_sem_consulta
+      FROM public.pacientes p
+      JOIN ultimas_consultas uc ON p.id = uc.paciente_id
+      WHERE p.nutricionista_id = ${nutricionistaId}
+        AND uc.ultima_data_consulta < (CURRENT_DATE - INTERVAL '30 days')::date
+        AND (uc.ultimo_proximo_retorno IS NULL OR uc.ultimo_proximo_retorno < CURRENT_DATE)
+      ORDER BY uc.ultima_data_consulta ASC
+    `;
+
+    return {
+      totalPacientes,
+      consultasSemana,
+      pacientesSemRetorno: semRetornoRes || [],
+    };
+  } catch (error) {
+    console.error('Error fetching dashboard metrics from Neon:', error);
+    return {
+      totalPacientes: 0,
+      consultasSemana: 0,
+      pacientesSemRetorno: [],
+    };
+  }
+}
+
+/**
+ * Obtém os dados completos de um paciente específico
+ */
+export async function getPacienteById(pacienteId) {
+  if (!pacienteId) return null;
+  try {
+    const rows = await sql`
+      SELECT *
+      FROM public.pacientes
+      WHERE id = ${pacienteId}
+      LIMIT 1
+    `;
+    return rows[0] || null;
+  } catch (error) {
+    console.error('Error fetching paciente by id:', error);
+    return null;
+  }
+}
+
+/**
+ * Obtém o histórico de consultas de um paciente
+ */
+export async function getConsultasByPaciente(pacienteId) {
+  if (!pacienteId) return [];
+  try {
+    const rows = await sql`
+      SELECT id, paciente_id, data_consulta, peso, cintura, quadril, percentual_gordura, observacoes, proximo_retorno, created_at
+      FROM public.consultas
+      WHERE paciente_id = ${pacienteId}
+      ORDER BY data_consulta DESC
+    `;
+    return rows;
+  } catch (error) {
+    console.error('Error fetching consultas:', error);
+    return [];
+  }
+}
+
+/**
  * Atualiza dados do perfil do paciente
  */
 export async function updatePacienteProfile(pacienteId, data) {
@@ -78,3 +193,4 @@ export async function updatePacienteProfile(pacienteId, data) {
     return null;
   }
 }
+
