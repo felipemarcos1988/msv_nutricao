@@ -4,6 +4,7 @@ import { getDashboardMetrics } from '../services/neonDb';
 import { Sidebar } from './Sidebar';
 import { PacientesView } from './PacientesView';
 import { PacienteModal } from './PacienteModal';
+import { AnalistaView } from './AnalistaView';
 import {
   Users,
   CalendarDays,
@@ -26,7 +27,7 @@ export function Dashboard() {
   const { user } = useAuth();
   const isPaciente = user?.role === 'paciente';
 
-  const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard' | 'pacientes'
+  const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard' | 'pacientes' | 'analista'
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [metrics, setMetrics] = useState({
     totalPacientes: 0,
@@ -77,6 +78,12 @@ export function Dashboard() {
     }
   };
 
+  const getBreadcrumbTitle = () => {
+    if (currentView === 'pacientes') return 'Pacientes';
+    if (currentView === 'analista') return 'Perfil Analista';
+    return 'Nutricionista';
+  };
+
   return (
     <div className="dashboard-app-layout">
       {/* Sidebar Fixa à Esquerda */}
@@ -103,9 +110,7 @@ export function Dashboard() {
             <div className="topbar-breadcrumb">
               <span className="breadcrumb-root">MSV Nutrição</span>
               <ChevronRight size={14} className="breadcrumb-separator" />
-              <span className="breadcrumb-current">
-                {currentView === 'dashboard' ? 'Dashboard Principal' : 'Lista de Pacientes'}
-              </span>
+              <span className="breadcrumb-current">{getBreadcrumbTitle()}</span>
             </div>
           </div>
 
@@ -127,10 +132,18 @@ export function Dashboard() {
           </div>
         </header>
 
-        {/* Conteúdo Dinâmico: Dashboard ou Lista de Pacientes */}
+        {/* Conteúdo Dinâmico: Nutricionista, Pacientes ou Analista */}
         <main className="dashboard-content-area">
           {currentView === 'pacientes' ? (
-            <PacientesView onSelectPaciente={handleOpenPaciente} />
+            <PacientesView
+              onSelectPaciente={handleOpenPaciente}
+              onOpenAnalista={(id) => {
+                setSelectedPacienteId(id);
+                setCurrentView('analista');
+              }}
+            />
+          ) : currentView === 'analista' ? (
+            <AnalistaView initialPacienteId={selectedPacienteId} />
           ) : isPaciente ? (
             /* Visualização Simplificada para Perfil do Paciente */
             <div className="paciente-dashboard-welcome">

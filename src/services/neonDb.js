@@ -194,3 +194,66 @@ export async function updatePacienteProfile(pacienteId, data) {
   }
 }
 
+/**
+ * Obtém os dados completos de evolução clínica e biométrica de um paciente
+ */
+export async function getEvolucaoPaciente(pacienteId) {
+  if (!pacienteId) return null;
+  try {
+    const paciente = await getPacienteById(pacienteId);
+    if (!paciente) return null;
+
+    const consultas = await sql`
+      SELECT id, paciente_id, data_consulta, peso, cintura, quadril, percentual_gordura, observacoes, proximo_retorno, created_at
+      FROM public.consultas
+      WHERE paciente_id = ${pacienteId}
+      ORDER BY data_consulta ASC
+    `;
+
+    // Altura em metros (trata casos onde foi cadastrado em cm como 170 ou m como 1.70)
+    let alturaMetros = parseFloat(paciente.altura) || 0;
+    if (alturaMetros > 3) {
+      alturaMetros = alturaMetros / 100;
+    }
+
+    const pesoInicial = parseFloat(paciente.peso_inicial) || (consultas.length > 0 ? parseFloat(consultas[0].peso) : 0);
+
+    const historico = consultas.map((c, index) => {
+      const pesoNum = parseFloat(c.peso) || 0;
+      let imc = null;
+      if (alturaMetros > 0 && pesoNum > 0) {
+        imc = parseFloat((pesoNum / (alturaMetros * alturaMetros)).toFixed(1));
+      }
+
+      const deltaPesoInicial = pesoInicial > 0 ? parseFloat((pesoNum - pesoInicial).toFixed(1)) : 0;
+      const deltaPesoAnterior = index > 0 && consultas[index - 1].peso ? parseFloat((pesoNum - parseFloat(consultas[index - 1].peso)).toFixed(1)) : 0;
+
+      return {
+        ...c,
+        pesoNum,
+        imc,
+        deltaPesoInicial,
+        deltaPesoAnterior,
+      };
+    });
+
+    const ultimaConsulta = historico.length > 0 ? historico[historico.length - 1] : null;
+    const pesoAtual = ultimaConsulta ? ultimaConsulta.pesoNum : pesoInicial;
+    const imcAtual = ultimaConsulta ? ultimaConsulta.imc : (alturaMetros > 0 && pesoInicial > 0 ? parseFloat((pesoInicial / (alturaMetros * alturaMetros)).toFixed(1)) : null);
+
+    return {
+      paciente,
+      alturaMetros,
+      pesoInicial,
+      pesoAtual,
+      imcAtual,
+      totalConsultas: historico.length,
+      historico,
+    };
+  } catch (error) {
+    console.error('Error fetching evolucao do paciente:', error);
+    return null;
+  }
+}
+
+

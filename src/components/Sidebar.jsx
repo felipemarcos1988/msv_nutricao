@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import { LayoutDashboard, Users, LogOut, Stethoscope, User, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Users, TrendingUp, LogOut, Stethoscope, User, ChevronRight } from 'lucide-react';
 
 export function Sidebar({ currentView, onViewChange, mobileOpen, setMobileOpen }) {
   const { user, logout } = useAuth();
@@ -11,8 +11,9 @@ export function Sidebar({ currentView, onViewChange, mobileOpen, setMobileOpen }
         { id: 'dashboard', label: 'Meu Painel', icon: LayoutDashboard },
       ]
     : [
-        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+        { id: 'dashboard', label: 'Nutricionista', icon: LayoutDashboard },
         { id: 'pacientes', label: 'Pacientes', icon: Users },
+        { id: 'analista', label: 'Analista', icon: TrendingUp },
       ];
 
   return (
