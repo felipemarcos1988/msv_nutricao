@@ -30,7 +30,7 @@ export function Sidebar({ currentView, onViewChange, mobileOpen, setMobileOpen }
         {/* Header com Logo */}
         <div className="sidebar-header">
           <div className="sidebar-brand">
-            <img src="/logo.png" alt="MSV Nutrição" className="sidebar-logo" />
+            <img src="/logo-bear.png" alt="MSV Nutrição" className="sidebar-logo" />
             <div className="sidebar-brand-text">
               <span className="brand-title">MSV Nutrição</span>
               <span className="brand-subtitle">
