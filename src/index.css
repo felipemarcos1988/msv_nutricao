@@ -55,19 +55,16 @@ body {
 body::before {
   content: '';
   position: fixed;
-  top: -30px;
-  left: -30px;
-  right: -30px;
-  bottom: -30px;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background-image: url('/bg-fruits.jpg');
   background-size: cover;
   background-position: center;
-  background-repeat: repeat;
-  filter: blur(10px) brightness(0.28) contrast(1.1);
-  opacity: 0.85;
+  background-repeat: no-repeat;
   z-index: -1;
   pointer-events: none;
-  transform: scale(1.05);
 }
 
 #root {
