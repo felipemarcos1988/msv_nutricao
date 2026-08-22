@@ -676,33 +676,38 @@ body::before {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.3rem 0.75rem;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 0.35rem 0.8rem;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(0, 0, 0, 0.2);
   border-radius: 20px;
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--text-secondary);
+  color: #000000;
   margin-bottom: 0.75rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
 .sparkle-icon {
-  color: #fbbf24;
+  color: #d97706;
 }
 
 .hero-title {
-  font-size: 1.85rem;
-  font-weight: 700;
+  font-size: 1.9rem;
+  font-weight: 800;
   letter-spacing: -0.02em;
   color: #ffffff;
   margin-bottom: 0.35rem;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8), 0 1px 3px rgba(0, 0, 0, 0.9);
 }
 
 .hero-subtitle {
-  font-size: 0.95rem;
-  color: var(--text-secondary);
+  font-size: 1rem;
+  color: #000000;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-shadow: 0 0 1px rgba(255, 255, 255, 0.8);
 }
 
 /* ==========================================================================
