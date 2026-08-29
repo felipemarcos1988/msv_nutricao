@@ -71,16 +71,16 @@ export function AnalistaView({ initialPacienteId = null, refreshKey }) {
     loadEvolucao();
   }, [selectedPacienteId]);
 
-  // Classificação do IMC pela OMS
+  // Classificação do IMC pela OMS com cores e categorias correspondentes à legenda
   const getImcClassification = (imc) => {
-    if (!imc || isNaN(imc)) return { text: 'N/A', color: 'gray', badgeClass: 'imc-gray' };
+    if (!imc || isNaN(imc)) return { text: 'N/A', color: '#a1a1aa', badgeClass: 'imc-gray', category: 'na' };
     const val = parseFloat(imc);
-    if (val < 18.5) return { text: 'Abaixo do peso', color: '#60a5fa', badgeClass: 'imc-blue' };
-    if (val < 25.0) return { text: 'Peso Normal', color: '#34d399', badgeClass: 'imc-emerald' };
-    if (val < 30.0) return { text: 'Sobrepeso', color: '#fbbf24', badgeClass: 'imc-amber' };
-    if (val < 35.0) return { text: 'Obesidade Grau I', color: '#f87171', badgeClass: 'imc-red' };
-    if (val < 40.0) return { text: 'Obesidade Grau II', color: '#ef4444', badgeClass: 'imc-red' };
-    return { text: 'Obesidade Grau III', color: '#dc2626', badgeClass: 'imc-red' };
+    if (val < 18.5) return { text: 'Abaixo do peso', color: '#60a5fa', badgeClass: 'imc-blue', category: 'abaixo' };
+    if (val < 25.0) return { text: 'Normal (Ideal)', color: '#34d399', badgeClass: 'imc-emerald', category: 'normal' };
+    if (val < 30.0) return { text: 'Sobrepeso', color: '#fbbf24', badgeClass: 'imc-amber', category: 'sobrepeso' };
+    if (val < 35.0) return { text: 'Obesidade Grau I', color: '#f87171', badgeClass: 'imc-red', category: 'obesidade' };
+    if (val < 40.0) return { text: 'Obesidade Grau II', color: '#f87171', badgeClass: 'imc-red', category: 'obesidade' };
+    return { text: 'Obesidade Grau III', color: '#f87171', badgeClass: 'imc-red', category: 'obesidade' };
   };
 
   const formatDate = (dateStr) => {
@@ -103,44 +103,30 @@ export function AnalistaView({ initialPacienteId = null, refreshKey }) {
     }
   };
 
-  // Prepara série histórica combinando peso inicial e consultas
+  // Prepara dados de série temporal
   const timelineData = useMemo(() => {
-    if (!evolucao) return [];
-    const { paciente, historico, alturaMetros } = evolucao;
-    const items = [];
+    if (!evolucao?.historico) return [];
+    return evolucao.historico.map((h, index) => {
+      const pesoVal = parseFloat(h.peso) || 0;
+      const imcVal = parseFloat(h.imc) || 0;
+      const gorduraVal = h.percentual_gordura ? parseFloat(h.percentual_gordura) : null;
+      const cinturaVal = h.cintura ? parseFloat(h.cintura) : null;
+      const quadrilVal = h.quadril ? parseFloat(h.quadril) : null;
 
-    // Ponto zero: Cadastro inicial (se houver peso inicial e não houver consulta na mesma data)
-    if (paciente?.peso_inicial && paciente?.created_at) {
-      const pIni = parseFloat(paciente.peso_inicial);
-      const imcIni = alturaMetros > 0 ? parseFloat((pIni / (alturaMetros * alturaMetros)).toFixed(1)) : null;
-      items.push({
-        isInitial: true,
-        data_consulta: paciente.created_at,
-        label: 'Início',
-        pesoNum: pIni,
-        imc: imcIni,
-        cintura: null,
-        quadril: null,
-        percentual_gordura: null,
-        observacoes: 'Cadastro inicial do paciente',
-      });
-    }
-
-    // Consultas posteriores
-    if (historico && historico.length > 0) {
-      historico.forEach((c) => {
-        items.push({
-          isInitial: false,
-          ...c,
-          label: formatShortDate(c.data_consulta),
-        });
-      });
-    }
-
-    return items;
+      return {
+        ...h,
+        displayDate: h.data_consulta ? formatDate(h.data_consulta) : `Registro ${index + 1}`,
+        pesoNum: pesoVal,
+        imc: imcVal,
+        gordura: gorduraVal,
+        cintura: cinturaVal,
+        quadril: quadrilVal,
+        isInitial: h.isInitial || false,
+      };
+    });
   }, [evolucao]);
 
-  // Cálculos de KPIs
+  // Indicadores KPIs Resumidos
   const kpis = useMemo(() => {
     if (!evolucao) {
       return {
@@ -149,7 +135,7 @@ export function AnalistaView({ initialPacienteId = null, refreshKey }) {
         deltaPeso: 0,
         deltaPesoPct: 0,
         imcAtual: null,
-        imcClass: { text: 'N/A', badgeClass: 'imc-gray' },
+        imcClass: { text: 'N/A', badgeClass: 'imc-gray', color: '#a1a1aa', category: 'na' },
         ultGordura: null,
         ultCintura: null,
         ultQuadril: null,
@@ -176,8 +162,8 @@ export function AnalistaView({ initialPacienteId = null, refreshKey }) {
     };
   }, [evolucao]);
 
-  // Renderizador de Gráficos SVG Nativos e Responsivos
-  const renderSvgChart = (metricKey, unit, colorHex, gradientId) => {
+  // Renderizador de Gráficos SVG Nativos e Responsivos com cores alinhadas à legenda
+  const renderSvgChart = (metricKey, unit, defaultColorHex, gradientId) => {
     const validPoints = timelineData.filter((d) => d[metricKey] !== null && !isNaN(d[metricKey]) && d[metricKey] > 0);
 
     if (validPoints.length < 2) {
@@ -186,7 +172,7 @@ export function AnalistaView({ initialPacienteId = null, refreshKey }) {
           <Info size={24} className="info-icon" />
           <h4>Dados insuficientes para gerar a curva temporal</h4>
           <p>
-            É necessário registrar ao menos <strong>2 consultas ou o peso inicial + 1 consulta</strong> para traçar o gráfico de evolução de {unit}.
+            É necessário registrar ao menos <strong>2 consultas ou o peso inicial + 1 consulta</strong> para traçar o gráfico de evolução de {unit || 'IMC'}.
           </p>
         </div>
       );
@@ -206,12 +192,19 @@ export function AnalistaView({ initialPacienteId = null, refreshKey }) {
     const chartW = width - padX * 2;
     const chartH = height - padTop - padBottom;
 
-    // Converte dados em coordenadas SVG
+    // Converte dados em coordenadas SVG com cor dinâmica por ponto correspondente à legenda
     const points = validPoints.map((d, idx) => {
+      const val = parseFloat(d[metricKey]);
       const x = padX + (idx / (validPoints.length - 1)) * chartW;
-      const y = padTop + chartH - ((parseFloat(d[metricKey]) - minVal) / valRange) * chartH;
-      return { x, y, data: d, val: parseFloat(d[metricKey]) };
+      const y = padTop + chartH - ((val - minVal) / valRange) * chartH;
+      const ptColor = metricKey === 'imc' ? getImcClassification(val).color : defaultColorHex;
+      return { x, y, data: d, val, color: ptColor };
     });
+
+    // Se for IMC, a cor dominante da linha/área segue o IMC do último ponto registrado
+    const activeColorHex = metricKey === 'imc'
+      ? (points.length > 0 ? points[points.length - 1].color : defaultColorHex)
+      : defaultColorHex;
 
     // Caminho da Linha (SVG Path)
     const linePath = points.reduce((acc, pt, idx) => {
@@ -223,12 +216,12 @@ export function AnalistaView({ initialPacienteId = null, refreshKey }) {
       return `${acc} C ${cpX1},${prev.y} ${cpX2},${pt.y} ${pt.x},${pt.y}`;
     }, '');
 
-    // Área sob a curva para preenchimento
+    // Área sob a curva para preenchimento com gradiente
     const firstPt = points[0];
     const lastPt = points[points.length - 1];
     const areaPath = `${linePath} L ${lastPt.x},${padTop + chartH} L ${firstPt.x},${padTop + chartH} Z`;
 
-    // Linhas de Grade Horizontais (Grid lines)
+    // Linhas de Grade Horizontais
     const gridCount = 4;
     const gridLines = [];
     for (let i = 0; i <= gridCount; i++) {
@@ -242,8 +235,8 @@ export function AnalistaView({ initialPacienteId = null, refreshKey }) {
         <svg viewBox={`0 0 ${width} ${height}`} className="svg-evolution-chart">
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={colorHex} stopOpacity="0.38" />
-              <stop offset="100%" stopColor={colorHex} stopOpacity="0.0" />
+              <stop offset="0%" stopColor={activeColorHex} stopOpacity="0.38" />
+              <stop offset="100%" stopColor={activeColorHex} stopOpacity="0.0" />
             </linearGradient>
           </defs>
 
@@ -278,28 +271,28 @@ export function AnalistaView({ initialPacienteId = null, refreshKey }) {
           <path
             d={linePath}
             fill="none"
-            stroke={colorHex}
-            strokeWidth="3"
+            stroke={activeColorHex}
+            strokeWidth="3.5"
             strokeLinecap="round"
           />
 
-          {/* Pontos de Dados */}
+          {/* Pontos de Dados com cores individuais conforme a legenda */}
           {points.map((pt, idx) => (
             <g key={idx} className="chart-data-point-group">
               {/* Círculo com halo */}
               <circle
                 cx={pt.x}
                 cy={pt.y}
-                r="6"
+                r="6.5"
                 fill="#121215"
-                stroke={colorHex}
-                strokeWidth="3"
+                stroke={pt.color}
+                strokeWidth="3.5"
               />
-              {/* Valor numérico no ponto */}
+              {/* Valor numérico no ponto com a cor exata da legenda */}
               <text
                 x={pt.x}
                 y={pt.y - 12}
-                fill="#ffffff"
+                fill={metricKey === 'imc' ? pt.color : '#ffffff'}
                 fontSize="12"
                 fontWeight="700"
                 textAnchor="middle"
@@ -536,25 +529,41 @@ export function AnalistaView({ initialPacienteId = null, refreshKey }) {
                 {activeTabChart === 'imc' && (
                   <div className="chart-item-box">
                     <div className="chart-legend-row">
-                      <span className="legend-dot bg-blue" />
+                      <span
+                        className="legend-dot"
+                        style={{ backgroundColor: kpis.imcClass?.color || '#34d399' }}
+                      />
                       <strong>Índice de Massa Corporal (IMC)</strong>
+                      {kpis.imcAtual && (
+                        <span
+                          className="legend-current-val"
+                          style={{ color: kpis.imcClass?.color || '#ffffff', fontWeight: 700, marginLeft: '0.25rem' }}
+                        >
+                          — {kpis.imcAtual} ({kpis.imcClass?.text})
+                        </span>
+                      )}
                       <span className="legend-hint">— Faixa Ideal OMS: 18.5 a 24.9</span>
                     </div>
-                    {renderSvgChart('imc', '', '#60a5fa', 'gradImc')}
 
-                    {/* Tabela de Referência OMS */}
+                    {renderSvgChart('imc', '', kpis.imcClass?.color || '#60a5fa', 'gradImc')}
+
+                    {/* Tabela de Referência OMS com Destaque na Faixa Atual do Paciente */}
                     <div className="imc-reference-guide">
-                      <div className="guide-item guide-blue">
-                        <span>Abaixo do peso</span> &lt; 18.5
+                      <div className={`guide-item guide-blue ${kpis.imcClass?.category === 'abaixo' ? 'active-guide' : ''}`}>
+                        <span>Abaixo do peso</span>
+                        <strong>&lt; 18.5</strong>
                       </div>
-                      <div className="guide-item guide-green">
-                        <span>Normal (Ideal)</span> 18.5 – 24.9
+                      <div className={`guide-item guide-green ${kpis.imcClass?.category === 'normal' ? 'active-guide' : ''}`}>
+                        <span>Normal (Ideal)</span>
+                        <strong>18.5 – 24.9</strong>
                       </div>
-                      <div className="guide-item guide-amber">
-                        <span>Sobrepeso</span> 25.0 – 29.9
+                      <div className={`guide-item guide-amber ${kpis.imcClass?.category === 'sobrepeso' ? 'active-guide' : ''}`}>
+                        <span>Sobrepeso</span>
+                        <strong>25.0 – 29.9</strong>
                       </div>
-                      <div className="guide-item guide-red">
-                        <span>Obesidade</span> ≥ 30.0
+                      <div className={`guide-item guide-red ${kpis.imcClass?.category === 'obesidade' ? 'active-guide' : ''}`}>
+                        <span>Obesidade</span>
+                        <strong>≥ 30.0</strong>
                       </div>
                     </div>
                   </div>
