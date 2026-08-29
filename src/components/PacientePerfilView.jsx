@@ -11,7 +11,9 @@ import {
   calculateAge,
   calculateIMC,
   getImcBadge,
+  calculateWaterIntake,
 } from './NovoPacienteView';
+
 import {
   User,
   HeartPulse,
@@ -202,6 +204,13 @@ export function PacientePerfilView({
   }, [isEditing, pesoAtual, altura, paciente?.peso_inicial, paciente?.altura]);
 
   const imcBadge = useMemo(() => getImcBadge(calculatedIMC), [calculatedIMC]);
+
+  const calculatedWater = useMemo(() => {
+    const p = isEditing ? pesoAtual : paciente?.peso_inicial;
+    const af = isEditing ? atividadeFisica : paciente?.atividade_fisica;
+    return calculateWaterIntake(p, calculatedAge, af);
+  }, [isEditing, pesoAtual, paciente?.peso_inicial, calculatedAge, atividadeFisica, paciente?.atividade_fisica]);
+
 
   // Manipuladores de Toggle para Listas com Opção 'Nenhum'
   const handleToggleMultiSelect = (list, setList, item) => {
@@ -530,8 +539,33 @@ export function PacientePerfilView({
               </div>
             </div>
           </div>
+
+          <div className="quick-metric-card">
+            <div className="quick-metric-icon bg-cyan">
+              <Droplets size={18} />
+            </div>
+            <div className="quick-metric-text">
+              <span className="qm-label">Água Diária Recomendada</span>
+              <div className="qm-water-row">
+                <strong className="qm-value">
+                  {calculatedWater ? calculatedWater.formatted : '—'}
+                </strong>
+                {calculatedWater && (
+                  <span className="qm-water-chip">
+                    {calculatedWater.rateMl} ml/kg
+                  </span>
+                )}
+              </div>
+              {calculatedWater && (paciente.atividade_fisica || atividadeFisica) && (
+                <span className="qm-water-subtext">
+                  {calculatedWater.formattedActive} c/ treino
+                </span>
+              )}
+            </div>
+          </div>
         </div>
       </div>
+
 
       {/* Navegação de Abas do Perfil */}
       <div className="perfil-tabs-bar">
@@ -653,12 +687,31 @@ export function PacientePerfilView({
                     {paciente.refeicoes_por_dia ? `${paciente.refeicoes_por_dia} refeições` : 'Não informado'}
                   </span>
                 </div>
-                <div className="info-detail-row">
+                <div className="info-detail-row water-detail-row">
                   <span className="info-detail-label">Ingestão Hídrica:</span>
-                  <span className="info-detail-value">
-                    {paciente.litros_agua ? `${paciente.litros_agua} litros/dia` : 'Não informado'}
-                  </span>
+                  <div className="water-summary-status-wrap">
+                    <span className="info-detail-value">
+                      {paciente.litros_agua ? `${paciente.litros_agua} litros/dia` : 'Não informado'}
+                    </span>
+                    {calculatedWater && (
+                      <span className="water-meta-chip">
+                        Meta: <strong>{paciente.atividade_fisica ? calculatedWater.formattedActive : calculatedWater.formatted}</strong> ({calculatedWater.rateMl} ml/kg)
+                      </span>
+                    )}
+                    {paciente.litros_agua && calculatedWater && (
+                      parseFloat(paciente.litros_agua) >= (paciente.atividade_fisica ? calculatedWater.activeLiters : calculatedWater.baseLiters) ? (
+                        <span className="water-badge-success">
+                          <CheckCircle2 size={12} /> Meta Atingida
+                        </span>
+                      ) : (
+                        <span className="water-badge-warning">
+                          <AlertCircle size={12} /> {(calculatedWater.baseLiters - parseFloat(paciente.litros_agua)).toFixed(1)} L abaixo da meta
+                        </span>
+                      )
+                    )}
+                  </div>
                 </div>
+
                 <div className="info-detail-row">
                   <span className="info-detail-label">Horário de Sono:</span>
                   <span className="info-detail-value">
@@ -1237,24 +1290,72 @@ export function PacientePerfilView({
                 </div>
               </div>
 
-              <div className="form-field-group">
-                <label className="field-label" htmlFor="edit-agua">
-                  Quantidade de água por dia
-                </label>
-                <div className="field-input-wrapper suffix-wrapper">
-                  <Droplets size={16} className="input-prefix-icon icon-blue" />
-                  <input
-                    id="edit-agua"
-                    type="number"
-                    step="0.1"
-                    className="field-input with-icon with-suffix"
-                    value={litrosAgua}
-                    onChange={(e) => setLitrosAgua(e.target.value)}
-                    disabled={!isEditing}
-                  />
-                  <span className="input-suffix-tag">litros</span>
+              <div className="form-field-group col-span-2">
+                <div className="field-label-row">
+                  <label className="field-label" htmlFor="edit-agua">
+                    Quantidade de água por dia
+                  </label>
+                  {calculatedWater && (
+                    <span className="field-calc-badge-water">
+                      <Droplets size={12} /> Meta ideal: <strong>{atividadeFisica ? calculatedWater.formattedActive : calculatedWater.formatted}</strong> ({calculatedWater.rateMl} ml/kg)
+                    </span>
+                  )}
                 </div>
+                <div className="water-input-action-row">
+                  <div className="field-input-wrapper suffix-wrapper flex-1">
+                    <Droplets size={16} className="input-prefix-icon icon-cyan" />
+                    <input
+                      id="edit-agua"
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="15"
+                      className="field-input with-icon with-suffix"
+                      value={litrosAgua}
+                      onChange={(e) => setLitrosAgua(e.target.value)}
+                      disabled={!isEditing}
+                    />
+                    <span className="input-suffix-tag">litros</span>
+                  </div>
+                  {isEditing && calculatedWater && (
+                    <button
+                      type="button"
+                      className="btn-apply-water-auto"
+                      onClick={() => setLitrosAgua(String(atividadeFisica ? calculatedWater.activeLiters : calculatedWater.baseLiters))}
+                      title="Aplicar cálculo automático de água recomendado"
+                    >
+                      <Sparkles size={14} />
+                      <span>Usar Meta ({atividadeFisica ? calculatedWater.formattedActive : calculatedWater.formatted})</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Card Explicativo de Consumo de Água */}
+                {calculatedWater && (
+                  <div className="water-calc-info-card fade-in">
+                    <div className="water-calc-info-left">
+                      <div className="water-calc-icon-box">
+                        <Droplets size={20} />
+                      </div>
+                      <div>
+                        <div className="water-calc-title-row">
+                          <strong className="water-calc-highlight">{calculatedWater.formatted} / dia</strong>
+                          <span className="water-calc-ml-sub">({calculatedWater.formattedMl})</span>
+                        </div>
+                        <span className="water-calc-explanation">
+                          Base: {pesoAtual || paciente.peso_inicial} kg × {calculatedWater.rateMl} ml/kg ({calculatedWater.faixaDesc})
+                        </span>
+                      </div>
+                    </div>
+                    {((isEditing ? atividadeFisica : paciente.atividade_fisica)) && (
+                      <div className="water-calc-active-badge">
+                        <span>+500 ml pelo treino: <strong>{calculatedWater.formattedActive}</strong></span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
+
 
               <div className="form-field-group">
                 <div className="field-label-row">

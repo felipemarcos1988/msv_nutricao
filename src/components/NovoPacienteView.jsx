@@ -151,7 +151,59 @@ export function getImcBadge(imc) {
   return { label: 'Obesidade Grau III (Mórbida)', class: 'imc-red' };
 }
 
+/**
+ * Cálculo de consumo diário de água recomendado baseado no peso corporal e faixa etária:
+ * - Até 17 anos: 40 ml por kg
+ * - De 18 a 55 anos: 35 ml por kg
+ * - De 55 a 65 anos: 30 ml por kg
+ * - Acima de 65 anos: 25 ml por kg
+ * - Atividade física: +500 ml a 1 litro
+ */
+export function calculateWaterIntake(peso, idade, praticaAtividade = false) {
+  const p = parseFloat(peso);
+  if (!p || isNaN(p) || p <= 0) return null;
+
+  let rateMl = 35; // Padrão adulto 18 a 55 anos
+  let faixaDesc = 'De 18 a 55 anos (35 ml/kg)';
+  const age = parseInt(idade, 10);
+
+  if (!isNaN(age) && age >= 0) {
+    if (age <= 17) {
+      rateMl = 40;
+      faixaDesc = 'Até 17 anos (40 ml/kg)';
+    } else if (age <= 55) {
+      rateMl = 35;
+      faixaDesc = 'De 18 a 55 anos (35 ml/kg)';
+    } else if (age <= 65) {
+      rateMl = 30;
+      faixaDesc = 'De 55 a 65 anos (30 ml/kg)';
+    } else {
+      rateMl = 25;
+      faixaDesc = 'Acima de 65 anos (25 ml/kg)';
+    }
+  }
+
+  const baseMl = Math.round(p * rateMl);
+  const baseLiters = parseFloat((baseMl / 1000).toFixed(2));
+  const activeMl = baseMl + 500;
+  const activeLiters = parseFloat((activeMl / 1000).toFixed(2));
+
+  return {
+    rateMl,
+    faixaDesc,
+    baseMl,
+    baseLiters,
+    activeMl,
+    activeLiters,
+    formatted: `${(baseMl / 1000).toFixed(2).replace('.', ',')} L`,
+    formattedMl: `${baseMl.toLocaleString('pt-BR')} ml/dia`,
+    formattedActive: `${(activeMl / 1000).toFixed(2).replace('.', ',')} L`,
+    formattedActiveMl: `${activeMl.toLocaleString('pt-BR')} ml/dia`,
+  };
+}
+
 export function NovoPacienteView({ onCancel, onSavedSuccess }) {
+
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('pessoal'); // 'pessoal' | 'clinico' | 'habitos'
 
@@ -197,6 +249,11 @@ export function NovoPacienteView({ onCancel, onSavedSuccess }) {
   const calculatedAge = useMemo(() => calculateAge(dataNascimento), [dataNascimento]);
   const calculatedIMC = useMemo(() => calculateIMC(pesoAtual, altura), [pesoAtual, altura]);
   const imcBadge = useMemo(() => getImcBadge(calculatedIMC), [calculatedIMC]);
+  const calculatedWater = useMemo(
+    () => calculateWaterIntake(pesoAtual, calculatedAge, atividadeFisica),
+    [pesoAtual, calculatedAge, atividadeFisica]
+  );
+
 
   // Manipuladores de Toggle para Listas com Opção 'Nenhum'
   const handleToggleMultiSelect = (list, setList, item) => {
@@ -1037,27 +1094,73 @@ export function NovoPacienteView({ onCancel, onSavedSuccess }) {
                 </div>
               </div>
 
-              {/* Quantidade de Água com Sufixo 'litros' */}
-              <div className="form-field-group">
-                <label className="field-label" htmlFor="litros-agua">
-                  Quantidade de água por dia
-                </label>
-                <div className="field-input-wrapper suffix-wrapper">
-                  <Droplets size={16} className="input-prefix-icon icon-blue" />
-                  <input
-                    id="litros-agua"
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    max="15"
-                    className="field-input with-icon with-suffix"
-                    placeholder="Ex: 2.5"
-                    value={litrosAgua}
-                    onChange={(e) => setLitrosAgua(e.target.value)}
-                  />
-                  <span className="input-suffix-tag">litros</span>
+              {/* Quantidade de Água com Sufixo 'litros' e Cálculo Automático Recomendado */}
+              <div className="form-field-group col-span-2">
+                <div className="field-label-row">
+                  <label className="field-label" htmlFor="litros-agua">
+                    Quantidade de água por dia
+                  </label>
+                  {calculatedWater && (
+                    <span className="field-calc-badge-water">
+                      <Droplets size={12} /> Meta ideal: <strong>{atividadeFisica ? calculatedWater.formattedActive : calculatedWater.formatted}</strong> ({calculatedWater.rateMl} ml/kg)
+                    </span>
+                  )}
                 </div>
+                <div className="water-input-action-row">
+                  <div className="field-input-wrapper suffix-wrapper flex-1">
+                    <Droplets size={16} className="input-prefix-icon icon-cyan" />
+                    <input
+                      id="litros-agua"
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="15"
+                      className="field-input with-icon with-suffix"
+                      placeholder={calculatedWater ? `Sugerido: ${calculatedWater.baseLiters}` : 'Ex: 2.5'}
+                      value={litrosAgua}
+                      onChange={(e) => setLitrosAgua(e.target.value)}
+                    />
+                    <span className="input-suffix-tag">litros</span>
+                  </div>
+                  {calculatedWater && (
+                    <button
+                      type="button"
+                      className="btn-apply-water-auto"
+                      onClick={() => setLitrosAgua(String(atividadeFisica ? calculatedWater.activeLiters : calculatedWater.baseLiters))}
+                      title="Aplicar cálculo automático de água recomendado"
+                    >
+                      <Sparkles size={14} />
+                      <span>Usar Meta ({atividadeFisica ? calculatedWater.formattedActive : calculatedWater.formatted})</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Card Explicativo de Consumo de Água */}
+                {calculatedWater && (
+                  <div className="water-calc-info-card fade-in">
+                    <div className="water-calc-info-left">
+                      <div className="water-calc-icon-box">
+                        <Droplets size={20} />
+                      </div>
+                      <div>
+                        <div className="water-calc-title-row">
+                          <strong className="water-calc-highlight">{calculatedWater.formatted} / dia</strong>
+                          <span className="water-calc-ml-sub">({calculatedWater.formattedMl})</span>
+                        </div>
+                        <span className="water-calc-explanation">
+                          Base: {pesoAtual} kg × {calculatedWater.rateMl} ml/kg ({calculatedWater.faixaDesc})
+                        </span>
+                      </div>
+                    </div>
+                    {atividadeFisica && (
+                      <div className="water-calc-active-badge">
+                        <span>+500 ml pelo treino: <strong>{calculatedWater.formattedActive}</strong></span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
+
 
               {/* Horário que Acorda (Conversão Inteligente) */}
               <div className="form-field-group">
