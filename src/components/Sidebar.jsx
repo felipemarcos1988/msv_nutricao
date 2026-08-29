@@ -16,6 +16,18 @@ export function Sidebar({ currentView, onViewChange, mobileOpen, setMobileOpen }
         { id: 'analista', label: 'Analista', icon: TrendingUp },
       ];
 
+  // Identifica qual item do menu deve ficar ativo
+  const isItemActive = (itemId) => {
+    if (itemId === 'pacientes') {
+      return (
+        currentView === 'pacientes' ||
+        currentView === 'novo-paciente' ||
+        currentView === 'perfil-paciente'
+      );
+    }
+    return currentView === itemId;
+  };
+
   return (
     <>
       {/* Overlay para mobile */}
@@ -47,12 +59,12 @@ export function Sidebar({ currentView, onViewChange, mobileOpen, setMobileOpen }
           <ul className="sidebar-menu-list">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = currentView === item.id;
+              const active = isItemActive(item.id);
               return (
                 <li key={item.id}>
                   <button
                     type="button"
-                    className={`sidebar-nav-item ${isActive ? 'active' : ''}`}
+                    className={`sidebar-nav-item ${active ? 'active' : ''}`}
                     onClick={() => {
                       onViewChange(item.id);
                       if (setMobileOpen) setMobileOpen(false);
@@ -62,7 +74,7 @@ export function Sidebar({ currentView, onViewChange, mobileOpen, setMobileOpen }
                       <Icon size={20} />
                     </div>
                     <span className="nav-item-label">{item.label}</span>
-                    {isActive && <ChevronRight size={16} className="nav-item-arrow" />}
+                    {active && <ChevronRight size={16} className="nav-item-arrow" />}
                   </button>
                 </li>
               );

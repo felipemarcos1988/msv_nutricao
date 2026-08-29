@@ -3,7 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import { getDashboardMetrics } from '../services/neonDb';
 import { Sidebar } from './Sidebar';
 import { PacientesView } from './PacientesView';
-import { PacienteModal } from './PacienteModal';
+import { NovoPacienteView } from './NovoPacienteView';
+import { PacientePerfilView } from './PacientePerfilView';
 import { AnalistaView } from './AnalistaView';
 import {
   Users,
@@ -12,12 +13,7 @@ import {
   Menu,
   RefreshCw,
   TrendingUp,
-  Calendar,
-  Phone,
-  Mail,
   ChevronRight,
-  ShieldCheck,
-  Stethoscope,
   User,
   CheckCircle2,
   Sparkles,
@@ -27,7 +23,7 @@ export function Dashboard() {
   const { user } = useAuth();
   const isPaciente = user?.role === 'paciente';
 
-  const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard' | 'pacientes' | 'analista'
+  const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard' | 'pacientes' | 'novo-paciente' | 'perfil-paciente' | 'analista'
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [metrics, setMetrics] = useState({
     totalPacientes: 0,
@@ -37,6 +33,7 @@ export function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedPacienteId, setSelectedPacienteId] = useState(null);
+  const [notification, setNotification] = useState(null);
 
   const fetchMetrics = async () => {
     if (!user?.id || isPaciente) {
@@ -67,6 +64,32 @@ export function Dashboard() {
 
   const handleOpenPaciente = (pacienteId) => {
     setSelectedPacienteId(pacienteId);
+    setCurrentView('perfil-paciente');
+  };
+
+  const handleNovoPaciente = () => {
+    setCurrentView('novo-paciente');
+  };
+
+  const handleSavedSuccess = (novoPaciente) => {
+    setSelectedPacienteId(novoPaciente.id);
+    setNotification({
+      type: 'success',
+      message: `Paciente "${novoPaciente.nome}" cadastrado com sucesso!`,
+    });
+    setCurrentView('perfil-paciente');
+    // Atualiza as métricas do painel
+    fetchMetrics();
+  };
+
+  const handlePacienteDeleted = () => {
+    setSelectedPacienteId(null);
+    setNotification({
+      type: 'success',
+      message: 'Paciente excluído com sucesso.',
+    });
+    setCurrentView('pacientes');
+    fetchMetrics();
   };
 
   const formatDate = (dateStr) => {
@@ -78,10 +101,48 @@ export function Dashboard() {
     }
   };
 
-  const getBreadcrumbTitle = () => {
-    if (currentView === 'pacientes') return 'Pacientes';
-    if (currentView === 'analista') return 'Perfil Analista';
-    return 'Nutricionista';
+  const getBreadcrumb = () => {
+    if (currentView === 'pacientes') {
+      return (
+        <>
+          <span className="breadcrumb-current">Pacientes</span>
+        </>
+      );
+    }
+    if (currentView === 'novo-paciente') {
+      return (
+        <>
+          <button
+            type="button"
+            className="breadcrumb-link-btn"
+            onClick={() => setCurrentView('pacientes')}
+          >
+            Pacientes
+          </button>
+          <ChevronRight size={14} className="breadcrumb-separator" />
+          <span className="breadcrumb-current">Novo Paciente</span>
+        </>
+      );
+    }
+    if (currentView === 'perfil-paciente') {
+      return (
+        <>
+          <button
+            type="button"
+            className="breadcrumb-link-btn"
+            onClick={() => setCurrentView('pacientes')}
+          >
+            Pacientes
+          </button>
+          <ChevronRight size={14} className="breadcrumb-separator" />
+          <span className="breadcrumb-current">Perfil do Paciente</span>
+        </>
+      );
+    }
+    if (currentView === 'analista') {
+      return <span className="breadcrumb-current">Analista</span>;
+    }
+    return <span className="breadcrumb-current">Painel Nutricionista</span>;
   };
 
   return (
@@ -89,14 +150,17 @@ export function Dashboard() {
       {/* Sidebar Fixa à Esquerda */}
       <Sidebar
         currentView={currentView}
-        onViewChange={setCurrentView}
+        onViewChange={(view) => {
+          setNotification(null);
+          setCurrentView(view);
+        }}
         mobileOpen={mobileSidebarOpen}
         setMobileOpen={setMobileSidebarOpen}
       />
 
       {/* Área Principal de Conteúdo */}
       <div className="dashboard-main-wrapper">
-        {/* Top Header Mobile / Desktop */}
+        {/* Top Header */}
         <header className="dashboard-topbar">
           <div className="topbar-left">
             <button
@@ -110,7 +174,7 @@ export function Dashboard() {
             <div className="topbar-breadcrumb">
               <span className="breadcrumb-root">MSV Nutrição</span>
               <ChevronRight size={14} className="breadcrumb-separator" />
-              <span className="breadcrumb-current">{getBreadcrumbTitle()}</span>
+              {getBreadcrumb()}
             </div>
           </div>
 
@@ -132,17 +196,38 @@ export function Dashboard() {
           </div>
         </header>
 
-        {/* Conteúdo Dinâmico: Nutricionista, Pacientes ou Analista */}
+        {/* Conteúdo Dinâmico */}
         <main className="dashboard-content-area">
+          {/* Visualização: Lista de Pacientes */}
           {currentView === 'pacientes' ? (
             <PacientesView
               onSelectPaciente={handleOpenPaciente}
+              onNovoPaciente={handleNovoPaciente}
               onOpenAnalista={(id) => {
                 setSelectedPacienteId(id);
                 setCurrentView('analista');
               }}
             />
+          ) : currentView === 'novo-paciente' ? (
+            /* Visualização: Novo Paciente (Formulário em 3 abas) */
+            <NovoPacienteView
+              onCancel={() => setCurrentView('pacientes')}
+              onSavedSuccess={handleSavedSuccess}
+            />
+          ) : currentView === 'perfil-paciente' ? (
+            /* Visualização: Perfil Completo e Editável do Paciente */
+            <PacientePerfilView
+              pacienteId={selectedPacienteId}
+              onBack={() => setCurrentView('pacientes')}
+              onOpenAnalista={(id) => {
+                setSelectedPacienteId(id);
+                setCurrentView('analista');
+              }}
+              onPacienteDeleted={handlePacienteDeleted}
+              successNotification={notification}
+            />
           ) : currentView === 'analista' ? (
+            /* Visualização: Analista */
             <AnalistaView initialPacienteId={selectedPacienteId} />
           ) : isPaciente ? (
             /* Visualização Simplificada para Perfil do Paciente */
@@ -158,7 +243,6 @@ export function Dashboard() {
           ) : (
             /* Visualização do Nutricionista com os 3 Cards de Informação */
             <div className="nutri-dashboard-container">
-              {/* Saudação e Boas-Vindas */}
               <div className="dashboard-hero-header">
                 <div>
                   <div className="hero-greeting">
@@ -263,7 +347,6 @@ export function Dashboard() {
                       </div>
                     </div>
 
-                    {/* Lista de Pacientes Sem Retorno */}
                     <div className="sem-retorno-list-container">
                       {loading ? (
                         <div className="list-loading-state">
@@ -325,14 +408,6 @@ export function Dashboard() {
           )}
         </main>
       </div>
-
-      {/* Modal de Detalhes do Paciente */}
-      {selectedPacienteId && (
-        <PacienteModal
-          pacienteId={selectedPacienteId}
-          onClose={() => setSelectedPacienteId(null)}
-        />
-      )}
     </div>
   );
 }

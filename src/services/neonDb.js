@@ -38,16 +38,20 @@ export async function syncUserRole(email, role) {
 }
 
 /**
- * Obtém os pacientes vinculados a um nutricionista
+ * Obtém os pacientes vinculados a um nutricionista com a data da última consulta e objetivos
  */
 export async function getPacientesByNutri(nutricionistaId) {
   if (!nutricionistaId) return [];
   try {
     const rows = await sql`
-      SELECT id, nome, email, whatsapp, peso_inicial, altura, created_at
-      FROM public.pacientes
-      WHERE nutricionista_id = ${nutricionistaId}
-      ORDER BY created_at DESC
+      SELECT 
+        p.*,
+        MAX(c.data_consulta) AS ultima_data_consulta
+      FROM public.pacientes p
+      LEFT JOIN public.consultas c ON p.id = c.paciente_id
+      WHERE p.nutricionista_id = ${nutricionistaId}
+      GROUP BY p.id
+      ORDER BY p.created_at DESC
     `;
     return rows;
   } catch (error) {
@@ -55,6 +59,187 @@ export async function getPacientesByNutri(nutricionistaId) {
     return [];
   }
 }
+
+/**
+ * Cria um novo paciente vinculado à nutricionista logada
+ */
+export async function createPaciente(data) {
+  if (!data.nome || !data.nutricionista_id) {
+    throw new Error('Nome e Nutricionista são obrigatórios.');
+  }
+
+  const {
+    nutricionista_id,
+    nome,
+    data_nascimento = null,
+    sexo = null,
+    telefone = null,
+    whatsapp = null,
+    email = null,
+    peso_inicial = null,
+    altura = null,
+    objetivos = [],
+    objetivo_texto = null,
+    nivel_atividade = null,
+    patologias = [],
+    restricoes_alimentares = [],
+    alergias = [],
+    medicamentos = null,
+    suplementos = null,
+    refeicoes_por_dia = null,
+    horario_acorda = null,
+    horario_dorme = null,
+    litros_agua = null,
+    atividade_fisica = false,
+    atividade_fisica_descricao = null,
+    observacoes = null,
+  } = data;
+
+  try {
+    const rows = await sql`
+      INSERT INTO public.pacientes (
+        nutricionista_id,
+        nome,
+        data_nascimento,
+        sexo,
+        telefone,
+        whatsapp,
+        email,
+        peso_inicial,
+        altura,
+        objetivos,
+        objetivo_texto,
+        nivel_atividade,
+        patologias,
+        restricoes_alimentares,
+        alergias,
+        medicamentos,
+        suplementos,
+        refeicoes_por_dia,
+        horario_acorda,
+        horario_dorme,
+        litros_agua,
+        atividade_fisica,
+        atividade_fisica_descricao,
+        observacoes
+      ) VALUES (
+        ${nutricionista_id},
+        ${nome.trim()},
+        ${data_nascimento || null},
+        ${sexo || null},
+        ${telefone || null},
+        ${whatsapp || null},
+        ${email || null},
+        ${peso_inicial ? Number(peso_inicial) : null},
+        ${altura ? Number(altura) : null},
+        ${objetivos && objetivos.length > 0 ? objetivos : null},
+        ${objetivo_texto || null},
+        ${nivel_atividade || null},
+        ${patologias && patologias.length > 0 ? patologias : null},
+        ${restricoes_alimentares && restricoes_alimentares.length > 0 ? restricoes_alimentares : null},
+        ${alergias && alergias.length > 0 ? alergias : null},
+        ${medicamentos || null},
+        ${suplementos || null},
+        ${refeicoes_por_dia ? parseInt(refeicoes_por_dia, 10) : null},
+        ${horario_acorda || null},
+        ${horario_dorme || null},
+        ${litros_agua ? Number(litros_agua) : null},
+        ${Boolean(atividade_fisica)},
+        ${atividade_fisica_descricao || null},
+        ${observacoes || null}
+      )
+      RETURNING *
+    `;
+    return rows[0] || null;
+  } catch (error) {
+    console.error('Error creating paciente:', error);
+    throw error;
+  }
+}
+
+/**
+ * Atualiza todos os dados cadastrais do paciente (CRUD)
+ */
+export async function updatePacienteCompleto(pacienteId, data) {
+  if (!pacienteId) throw new Error('ID do paciente é obrigatório.');
+
+  const {
+    nome,
+    data_nascimento = null,
+    sexo = null,
+    telefone = null,
+    whatsapp = null,
+    email = null,
+    peso_inicial = null,
+    altura = null,
+    objetivos = [],
+    objetivo_texto = null,
+    nivel_atividade = null,
+    patologias = [],
+    restricoes_alimentares = [],
+    alergias = [],
+    medicamentos = null,
+    suplementos = null,
+    refeicoes_por_dia = null,
+    horario_acorda = null,
+    horario_dorme = null,
+    litros_agua = null,
+    atividade_fisica = false,
+    atividade_fisica_descricao = null,
+    observacoes = null,
+  } = data;
+
+  try {
+    const rows = await sql`
+      UPDATE public.pacientes
+      SET
+        nome = ${nome ? nome.trim() : sql`nome`},
+        data_nascimento = ${data_nascimento || null},
+        sexo = ${sexo || null},
+        telefone = ${telefone || null},
+        whatsapp = ${whatsapp || null},
+        email = ${email || null},
+        peso_inicial = ${peso_inicial ? Number(peso_inicial) : null},
+        altura = ${altura ? Number(altura) : null},
+        objetivos = ${objetivos && objetivos.length > 0 ? objetivos : null},
+        objetivo_texto = ${objetivo_texto || null},
+        nivel_atividade = ${nivel_atividade || null},
+        patologias = ${patologias && patologias.length > 0 ? patologias : null},
+        restricoes_alimentares = ${restricoes_alimentares && restricoes_alimentares.length > 0 ? restricoes_alimentares : null},
+        alergias = ${alergias && alergias.length > 0 ? alergias : null},
+        medicamentos = ${medicamentos || null},
+        suplementos = ${suplementos || null},
+        refeicoes_por_dia = ${refeicoes_por_dia ? parseInt(refeicoes_por_dia, 10) : null},
+        horario_acorda = ${horario_acorda || null},
+        horario_dorme = ${horario_dorme || null},
+        litros_agua = ${litros_agua ? Number(litros_agua) : null},
+        atividade_fisica = ${Boolean(atividade_fisica)},
+        atividade_fisica_descricao = ${atividade_fisica_descricao || null},
+        observacoes = ${observacoes || null}
+      WHERE id = ${pacienteId}
+      RETURNING *
+    `;
+    return rows[0] || null;
+  } catch (error) {
+    console.error('Error updating paciente completo:', error);
+    throw error;
+  }
+}
+
+/**
+ * Exclui um paciente do banco de dados (cascateia para consultas e planos)
+ */
+export async function deletePaciente(pacienteId) {
+  if (!pacienteId) return false;
+  try {
+    await sql`DELETE FROM public.pacientes WHERE id = ${pacienteId}`;
+    return true;
+  } catch (error) {
+    console.error('Error deleting paciente:', error);
+    throw error;
+  }
+}
+
 
 /**
  * Obtém as métricas em tempo real para o Dashboard do Nutricionista
