@@ -88,6 +88,7 @@ export function PacientePerfilView({
   onOpenAnalista,
   onPacienteDeleted,
   successNotification,
+  refreshKey,
 }) {
   const [paciente, setPaciente] = useState(null);
   const [consultas, setConsultas] = useState([]);
@@ -185,7 +186,8 @@ export function PacientePerfilView({
 
   useEffect(() => {
     loadData();
-  }, [pacienteId]);
+  }, [pacienteId, refreshKey]);
+
 
   // Cálculos dinâmicos
   const calculatedAge = useMemo(

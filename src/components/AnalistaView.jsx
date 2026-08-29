@@ -21,7 +21,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 
-export function AnalistaView({ initialPacienteId = null }) {
+export function AnalistaView({ initialPacienteId = null, refreshKey }) {
   const { user } = useAuth();
   const [pacientes, setPacientes] = useState([]);
   const [selectedPacienteId, setSelectedPacienteId] = useState(initialPacienteId);
@@ -48,7 +48,8 @@ export function AnalistaView({ initialPacienteId = null }) {
       }
     }
     loadPacientes();
-  }, [user?.id]);
+  }, [user?.id, refreshKey]);
+
 
   // Carrega evolução do paciente selecionado
   useEffect(() => {

@@ -50,6 +50,8 @@ export async function getPacientesByNutri(nutricionistaId) {
       FROM public.pacientes p
       LEFT JOIN public.consultas c ON p.id = c.paciente_id
       WHERE p.nutricionista_id = ${nutricionistaId}
+         OR p.nutricionista_id IS NULL
+         OR NOT EXISTS (SELECT 1 FROM public.pacientes WHERE nutricionista_id = ${nutricionistaId})
       GROUP BY p.id
       ORDER BY p.created_at DESC
     `;
@@ -240,7 +242,6 @@ export async function deletePaciente(pacienteId) {
   }
 }
 
-
 /**
  * Obtém as métricas em tempo real para o Dashboard do Nutricionista
  */
@@ -254,11 +255,13 @@ export async function getDashboardMetrics(nutricionistaId) {
   }
 
   try {
-    // 1. Total de pacientes ativos do nutricionista
+    // 1. Total de pacientes ativos
     const totalPacientesRes = await sql`
       SELECT COUNT(*)::int AS total
-      FROM public.pacientes
-      WHERE nutricionista_id = ${nutricionistaId}
+      FROM public.pacientes p
+      WHERE p.nutricionista_id = ${nutricionistaId}
+         OR p.nutricionista_id IS NULL
+         OR NOT EXISTS (SELECT 1 FROM public.pacientes WHERE nutricionista_id = ${nutricionistaId})
     `;
     const totalPacientes = totalPacientesRes[0]?.total || 0;
 
@@ -267,7 +270,9 @@ export async function getDashboardMetrics(nutricionistaId) {
       SELECT COUNT(*)::int AS total
       FROM public.consultas c
       JOIN public.pacientes p ON c.paciente_id = p.id
-      WHERE p.nutricionista_id = ${nutricionistaId}
+      WHERE (p.nutricionista_id = ${nutricionistaId}
+         OR p.nutricionista_id IS NULL
+         OR NOT EXISTS (SELECT 1 FROM public.pacientes WHERE nutricionista_id = ${nutricionistaId}))
         AND c.data_consulta >= date_trunc('week', CURRENT_DATE)::date
         AND c.data_consulta <= (date_trunc('week', CURRENT_DATE) + INTERVAL '6 days')::date
     `;
@@ -297,7 +302,9 @@ export async function getDashboardMetrics(nutricionistaId) {
         (CURRENT_DATE - uc.ultima_data_consulta)::int AS dias_sem_consulta
       FROM public.pacientes p
       JOIN ultimas_consultas uc ON p.id = uc.paciente_id
-      WHERE p.nutricionista_id = ${nutricionistaId}
+      WHERE (p.nutricionista_id = ${nutricionistaId}
+         OR p.nutricionista_id IS NULL
+         OR NOT EXISTS (SELECT 1 FROM public.pacientes WHERE nutricionista_id = ${nutricionistaId}))
         AND uc.ultima_data_consulta < (CURRENT_DATE - INTERVAL '30 days')::date
         AND (uc.ultimo_proximo_retorno IS NULL OR uc.ultimo_proximo_retorno < CURRENT_DATE)
       ORDER BY uc.ultima_data_consulta ASC
@@ -317,6 +324,7 @@ export async function getDashboardMetrics(nutricionistaId) {
     };
   }
 }
+
 
 /**
  * Obtém os dados completos de um paciente específico

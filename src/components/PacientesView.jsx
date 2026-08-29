@@ -17,7 +17,7 @@ import {
   Clock,
 } from 'lucide-react';
 
-export function PacientesView({ onSelectPaciente, onNovoPaciente, onOpenAnalista }) {
+export function PacientesView({ onSelectPaciente, onNovoPaciente, onOpenAnalista, refreshKey, onRefresh }) {
   const { user } = useAuth();
   const [pacientes, setPacientes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -39,12 +39,20 @@ export function PacientesView({ onSelectPaciente, onNovoPaciente, onOpenAnalista
 
   useEffect(() => {
     fetchPacientes();
-  }, [user?.id]);
+  }, [user?.id, refreshKey]);
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setRefreshing(true);
-    fetchPacientes();
+    try {
+      await fetchPacientes();
+      if (onRefresh) {
+        onRefresh();
+      }
+    } finally {
+      setTimeout(() => setRefreshing(false), 500);
+    }
   };
+
 
   // Filtro de busca por nome, e-mail ou WhatsApp
   const filteredPacientes = pacientes.filter((p) => {

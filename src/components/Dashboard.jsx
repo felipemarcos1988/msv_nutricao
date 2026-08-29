@@ -34,6 +34,9 @@ export function Dashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedPacienteId, setSelectedPacienteId] = useState(null);
   const [notification, setNotification] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+
 
   const fetchMetrics = async () => {
     if (!user?.id || isPaciente) {
@@ -55,12 +58,18 @@ export function Dashboard() {
 
   useEffect(() => {
     fetchMetrics();
-  }, [user?.id, isPaciente]);
+  }, [user?.id, isPaciente, refreshKey]);
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setRefreshing(true);
-    fetchMetrics();
+    try {
+      await fetchMetrics();
+      setRefreshKey((k) => k + 1);
+    } finally {
+      setTimeout(() => setRefreshing(false), 500);
+    }
   };
+
 
   const handleOpenPaciente = (pacienteId) => {
     setSelectedPacienteId(pacienteId);
@@ -201,6 +210,8 @@ export function Dashboard() {
           {/* Visualização: Lista de Pacientes */}
           {currentView === 'pacientes' ? (
             <PacientesView
+              refreshKey={refreshKey}
+              onRefresh={handleRefresh}
               onSelectPaciente={handleOpenPaciente}
               onNovoPaciente={handleNovoPaciente}
               onOpenAnalista={(id) => {
@@ -218,6 +229,7 @@ export function Dashboard() {
             /* Visualização: Perfil Completo e Editável do Paciente */
             <PacientePerfilView
               pacienteId={selectedPacienteId}
+              refreshKey={refreshKey}
               onBack={() => setCurrentView('pacientes')}
               onOpenAnalista={(id) => {
                 setSelectedPacienteId(id);
@@ -228,8 +240,12 @@ export function Dashboard() {
             />
           ) : currentView === 'analista' ? (
             /* Visualização: Analista */
-            <AnalistaView initialPacienteId={selectedPacienteId} />
+            <AnalistaView
+              initialPacienteId={selectedPacienteId}
+              refreshKey={refreshKey}
+            />
           ) : isPaciente ? (
+
             /* Visualização Simplificada para Perfil do Paciente */
             <div className="paciente-dashboard-welcome">
               <div className="welcome-banner">
