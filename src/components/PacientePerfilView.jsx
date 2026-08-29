@@ -4,6 +4,9 @@ import {
   updatePacienteCompleto,
   deletePaciente,
   getConsultasByPaciente,
+  createConsulta,
+  deleteConsulta,
+  getPlanosByPaciente,
 } from '../services/neonDb';
 import {
   formatPhone,
@@ -38,6 +41,14 @@ import {
   TrendingUp,
   ExternalLink,
   MessageCircle,
+  FileText,
+  Utensils,
+  ChevronRight,
+  TrendingDown,
+  RotateCcw,
+  Eye,
+  CalendarCheck,
+  Percent,
 } from 'lucide-react';
 
 const OBJETIVOS_OPCOES = [
@@ -94,15 +105,47 @@ export function PacientePerfilView({
 }) {
   const [paciente, setPaciente] = useState(null);
   const [consultas, setConsultas] = useState([]);
+  const [planos, setPlanos] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [isEditing, setIsEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [feedback, setFeedback] = useState(successNotification || null);
-  const [activeTab, setActiveTab] = useState('resumo'); // 'resumo' | 'pessoal' | 'clinico' | 'habitos' | 'consultas'
 
-  // Campos em modo de edição
+  // 3 Seções Principais (Prompt 5)
+  // 'dados' (Seção 1) | 'consultas' (Seção 2) | 'planos' (Seção 3)
+  const [activeSection, setActiveSection] = useState('dados');
+  // Sub-abas da Seção 1 (Dados do Paciente)
+  const [dadosSubTab, setDadosSubTab] = useState('pessoal'); // 'pessoal' | 'clinico' | 'habitos'
+
+  // Estados de Edição da Seção 1 (Dados)
+  const [isDirty, setIsDirty] = useState(false);
+  const [savingDados, setSavingDados] = useState(false);
+  const [feedback, setFeedback] = useState(successNotification || null);
+
+  // Modal de Exclusão de Paciente
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  // Modal de Nova Consulta (Seção 2)
+  const [showNovaConsultaModal, setShowNovaConsultaModal] = useState(false);
+  const [savingConsulta, setSavingConsulta] = useState(false);
+  const [consultaError, setConsultaError] = useState('');
+  const [novaConsultaData, setNovaConsultaData] = useState({
+    data_consulta: new Date().toISOString().slice(0, 10),
+    peso: '',
+    cintura: '',
+    quadril: '',
+    percentual_gordura: '',
+    observacoes: '',
+    proximo_retorno: '',
+  });
+
+  // Modal de Exclusão de Consulta
+  const [consultaToDelete, setConsultaToDelete] = useState(null);
+  const [deletingConsulta, setDeletingConsulta] = useState(false);
+
+  // Modal de Visualização de Plano Alimentar (Seção 3)
+  const [selectedPlano, setSelectedPlano] = useState(null);
+  const [showGerarPlanoModal, setShowGerarPlanoModal] = useState(false);
+
+  // Campos de Dados do Paciente (Seção 1 - Edição Direta)
   const [nome, setNome] = useState('');
   const [dataNascimento, setDataNascimento] = useState('');
   const [sexo, setSexo] = useState('');
@@ -135,7 +178,6 @@ export function PacientePerfilView({
   const populateForm = (data) => {
     if (!data) return;
     setNome(data.nome || '');
-    // Formata data_nascimento para YYYY-MM-DD
     if (data.data_nascimento) {
       const dt = new Date(data.data_nascimento);
       setDataNascimento(dt.toISOString().slice(0, 10));
@@ -165,21 +207,24 @@ export function PacientePerfilView({
     setAtividadeFisica(Boolean(data.atividade_fisica));
     setAtividadeDescricao(data.atividade_fisica_descricao || '');
     setObservacoes(data.observacoes || '');
+    setIsDirty(false);
   };
 
   const loadData = async () => {
     if (!pacienteId) return;
     try {
       setLoading(true);
-      const [pacData, consData] = await Promise.all([
+      const [pacData, consData, planosData] = await Promise.all([
         getPacienteById(pacienteId),
         getConsultasByPaciente(pacienteId),
+        getPlanosByPaciente(pacienteId),
       ]);
       setPaciente(pacData);
       setConsultas(consData || []);
+      setPlanos(planosData || []);
       populateForm(pacData);
     } catch (err) {
-      console.error('Erro ao carregar perfil do paciente:', err);
+      console.error('Erro ao carregar dados do paciente:', err);
       setFeedback({ type: 'error', message: 'Erro ao carregar dados do paciente.' });
     } finally {
       setLoading(false);
@@ -190,30 +235,29 @@ export function PacientePerfilView({
     loadData();
   }, [pacienteId, refreshKey]);
 
-
   // Cálculos dinâmicos
   const calculatedAge = useMemo(
-    () => calculateAge(isEditing ? dataNascimento : paciente?.data_nascimento),
-    [isEditing, dataNascimento, paciente?.data_nascimento]
+    () => calculateAge(dataNascimento || paciente?.data_nascimento),
+    [dataNascimento, paciente?.data_nascimento]
   );
 
   const calculatedIMC = useMemo(() => {
-    const p = isEditing ? pesoAtual : paciente?.peso_inicial;
-    const a = isEditing ? altura : paciente?.altura;
+    const p = pesoAtual || paciente?.peso_inicial;
+    const a = altura || paciente?.altura;
     return calculateIMC(p, a);
-  }, [isEditing, pesoAtual, altura, paciente?.peso_inicial, paciente?.altura]);
+  }, [pesoAtual, altura, paciente?.peso_inicial, paciente?.altura]);
 
   const imcBadge = useMemo(() => getImcBadge(calculatedIMC), [calculatedIMC]);
 
   const calculatedWater = useMemo(() => {
-    const p = isEditing ? pesoAtual : paciente?.peso_inicial;
-    const af = isEditing ? atividadeFisica : paciente?.atividade_fisica;
+    const p = pesoAtual || paciente?.peso_inicial;
+    const af = atividadeFisica ?? paciente?.atividade_fisica;
     return calculateWaterIntake(p, calculatedAge, af);
-  }, [isEditing, pesoAtual, paciente?.peso_inicial, calculatedAge, atividadeFisica, paciente?.atividade_fisica]);
-
+  }, [pesoAtual, paciente?.peso_inicial, calculatedAge, atividadeFisica, paciente?.atividade_fisica]);
 
   // Manipuladores de Toggle para Listas com Opção 'Nenhum'
   const handleToggleMultiSelect = (list, setList, item) => {
+    setIsDirty(true);
     if (item === 'Nenhum') {
       if (list.includes('Nenhum')) {
         setList([]);
@@ -234,6 +278,7 @@ export function PacientePerfilView({
   const handleAddCustomItem = (customVal, setCustomVal, list, setList) => {
     const val = customVal.trim();
     if (!val) return;
+    setIsDirty(true);
     const filtered = list.filter((i) => i !== 'Nenhum');
     if (!filtered.includes(val)) {
       setList([...filtered, val]);
@@ -242,111 +287,266 @@ export function PacientePerfilView({
   };
 
   const handleRemoveItem = (item, list, setList) => {
+    setIsDirty(true);
     setList(list.filter((i) => i !== item));
   };
 
-  // Salvar alterações no modo de edição (CRUD)
-  const handleSaveChanges = async () => {
+  // Salvar Alterações da Seção 1 (Dados do Paciente)
+  const handleSaveDados = async (e) => {
+    if (e) e.preventDefault();
     if (!nome.trim()) {
-      setFeedback({ type: 'error', message: 'O nome completo é obrigatório.' });
+      setFeedback({ type: 'error', message: 'O nome completo do paciente é obrigatório.' });
       return;
     }
 
     try {
-      setSaving(true);
+      setSavingDados(true);
+      setFeedback(null);
+
       const payload = {
         nome: nome.trim(),
         data_nascimento: dataNascimento || null,
         sexo: sexo || null,
-        telefone: telefone ? telefone.trim() : null,
-        whatsapp: whatsapp ? whatsapp.trim() : null,
+        telefone: telefone || null,
+        whatsapp: whatsapp || null,
         email: email ? email.trim().toLowerCase() : null,
-        peso_inicial: pesoAtual ? parseFloat(pesoAtual) : null,
-        altura: altura ? parseFloat(altura) : null,
-        objetivos: objetivos,
-        objetivo_texto: objetivoTexto ? objetivoTexto.trim() : null,
+        peso_inicial: pesoAtual ? Number(pesoAtual) : null,
+        altura: altura ? Number(altura) : null,
+        objetivos,
+        objetivo_texto: objetivoTexto || null,
         nivel_atividade: nivelAtividade || null,
-        patologias: patologias,
+        patologias,
         restricoes_alimentares: restricoes,
-        alergias: alergias,
-        medicamentos: medicamentos ? medicamentos.trim() : null,
-        suplementos: suplementos ? suplementos.trim() : null,
+        alergias,
+        medicamentos: medicamentos || null,
+        suplementos: suplementos || null,
         refeicoes_por_dia: refeicoesPorDia ? parseInt(refeicoesPorDia, 10) : null,
-        horario_acorda: horarioAcorda ? formatSmartTime(horarioAcorda) : null,
-        horario_dorme: horarioDorme ? formatSmartTime(horarioDorme) : null,
-        litros_agua: litrosAgua ? parseFloat(litrosAgua) : null,
+        horario_acorda: horarioAcorda || null,
+        horario_dorme: horarioDorme || null,
+        litros_agua: litrosAgua ? Number(litrosAgua) : null,
         atividade_fisica: Boolean(atividadeFisica),
-        atividade_fisica_descricao: atividadeFisica && atividadeDescricao ? atividadeDescricao.trim() : null,
-        observacoes: observacoes ? observacoes.trim() : null,
+        atividade_fisica_descricao: atividadeDescricao || null,
+        observacoes: observacoes || null,
       };
 
       const updated = await updatePacienteCompleto(pacienteId, payload);
-      setPaciente(updated);
-      populateForm(updated);
-      setIsEditing(false);
-      setFeedback({ type: 'success', message: 'Dados do paciente atualizados com sucesso!' });
+      if (updated) {
+        setPaciente(updated);
+        populateForm(updated);
+        setFeedback({ type: 'success', message: 'Dados do paciente atualizados com sucesso no Neon!' });
+        setIsDirty(false);
+      }
     } catch (err) {
-      console.error('Erro ao atualizar paciente:', err);
-      setFeedback({ type: 'error', message: 'Não foi possível salvar as alterações.' });
+      console.error('Erro ao salvar alterações:', err);
+      setFeedback({ type: 'error', message: 'Erro ao salvar alterações no Neon PostgreSQL.' });
     } finally {
-      setSaving(false);
+      setSavingDados(false);
     }
   };
 
-  // Excluir paciente
-  const handleDelete = async () => {
+  // Excluir Paciente
+  const handleDeletePaciente = async () => {
     try {
       setDeleting(true);
-      await deletePaciente(pacienteId);
-      setShowDeleteModal(false);
-      if (onPacienteDeleted) {
-        onPacienteDeleted();
+      const success = await deletePaciente(pacienteId);
+      if (success) {
+        if (onPacienteDeleted) onPacienteDeleted();
+        else onBack();
       }
     } catch (err) {
       console.error('Erro ao excluir paciente:', err);
-      setFeedback({ type: 'error', message: 'Não foi possível excluir o paciente.' });
+      setFeedback({ type: 'error', message: 'Erro ao excluir paciente.' });
     } finally {
       setDeleting(false);
+      setShowDeleteModal(false);
     }
   };
 
-  const formatDate = (dateStr) => {
-    if (!dateStr) return 'Não informada';
+  // Abrir Modal de Nova Consulta
+  const handleOpenNovaConsulta = () => {
+    setConsultaError('');
+    setNovaConsultaData({
+      data_consulta: new Date().toISOString().slice(0, 10),
+      peso: consultas.length > 0 ? String(consultas[0].peso) : (paciente?.peso_inicial ? String(paciente.peso_inicial) : ''),
+      cintura: '',
+      quadril: '',
+      percentual_gordura: '',
+      observacoes: '',
+      proximo_retorno: '',
+    });
+    setShowNovaConsultaModal(true);
+  };
+
+  // Salvar Nova Consulta (Seção 2)
+  const handleSaveNovaConsulta = async (e) => {
+    if (e) e.preventDefault();
+    setConsultaError('');
+
+    if (!novaConsultaData.data_consulta) {
+      setConsultaError('A data da consulta é obrigatória.');
+      return;
+    }
+    if (!novaConsultaData.peso || isNaN(parseFloat(novaConsultaData.peso)) || parseFloat(novaConsultaData.peso) <= 0) {
+      setConsultaError('Informe um peso válido para a consulta.');
+      return;
+    }
+
     try {
-      const d = new Date(dateStr);
-      return d.toLocaleDateString('pt-BR');
-    } catch {
-      return dateStr;
+      setSavingConsulta(true);
+      const payload = {
+        paciente_id: pacienteId,
+        data_consulta: novaConsultaData.data_consulta,
+        peso: parseFloat(novaConsultaData.peso),
+        cintura: novaConsultaData.cintura ? parseFloat(novaConsultaData.cintura) : null,
+        quadril: novaConsultaData.quadril ? parseFloat(novaConsultaData.quadril) : null,
+        percentual_gordura: novaConsultaData.percentual_gordura ? parseFloat(novaConsultaData.percentual_gordura) : null,
+        observacoes: novaConsultaData.observacoes || null,
+        proximo_retorno: novaConsultaData.proximo_retorno || null,
+      };
+
+      const created = await createConsulta(payload);
+      if (created) {
+        setShowNovaConsultaModal(false);
+        setFeedback({ type: 'success', message: 'Consulta registrada e gráfico atualizado com sucesso!' });
+        // Recarrega consultas e paciente em tempo real
+        const [consData, pacData] = await Promise.all([
+          getConsultasByPaciente(pacienteId),
+          getPacienteById(pacienteId),
+        ]);
+        setConsultas(consData || []);
+        setPaciente(pacData);
+      }
+    } catch (err) {
+      console.error('Erro ao salvar consulta:', err);
+      setConsultaError('Erro ao registrar consulta no Neon. Verifique os dados e tente novamente.');
+    } finally {
+      setSavingConsulta(false);
     }
   };
+
+  // Excluir Consulta
+  const handleDeleteConsultaConfirm = async () => {
+    if (!consultaToDelete) return;
+    try {
+      setDeletingConsulta(true);
+      const success = await deleteConsulta(consultaToDelete.id);
+      if (success) {
+        setConsultas(consultas.filter((c) => c.id !== consultaToDelete.id));
+        setFeedback({ type: 'success', message: 'Consulta removida com sucesso.' });
+      }
+    } catch (err) {
+      console.error('Erro ao excluir consulta:', err);
+      setFeedback({ type: 'error', message: 'Erro ao remover consulta.' });
+    } finally {
+      setDeletingConsulta(false);
+      setConsultaToDelete(null);
+    }
+  };
+
+  // Preparação dos dados para o Gráfico de Evolução de Peso
+  const chartData = useMemo(() => {
+    if (!consultas || consultas.length === 0) {
+      return [];
+    }
+
+    // Ordena do mais antigo para o mais recente para traçar o gráfico
+    const sorted = [...consultas].sort(
+      (a, b) => new Date(a.data_consulta) - new Date(b.data_consulta)
+    );
+
+    return sorted.map((c, idx) => {
+      const dt = new Date(c.data_consulta);
+      const dateLabel = !isNaN(dt.getTime())
+        ? dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+        : c.data_consulta;
+
+      const fullDate = !isNaN(dt.getTime())
+        ? dt.toLocaleDateString('pt-BR')
+        : c.data_consulta;
+
+      const pesoVal = parseFloat(c.peso) || 0;
+      const prevPeso = idx > 0 ? parseFloat(sorted[idx - 1].peso) || pesoVal : pesoVal;
+      const delta = idx > 0 ? parseFloat((pesoVal - prevPeso).toFixed(1)) : 0;
+
+      return {
+        id: c.id,
+        dateLabel,
+        fullDate,
+        peso: pesoVal,
+        delta,
+        cintura: c.cintura ? parseFloat(c.cintura) : null,
+        percentual_gordura: c.percentual_gordura ? parseFloat(c.percentual_gordura) : null,
+      };
+    });
+  }, [consultas]);
+
+  // Estatísticas de evolução de peso
+  const pesoStats = useMemo(() => {
+    if (chartData.length === 0) {
+      return {
+        pesoInicial: paciente?.peso_inicial ? parseFloat(paciente.peso_inicial) : null,
+        pesoAtual: paciente?.peso_inicial ? parseFloat(paciente.peso_inicial) : null,
+        deltaTotal: 0,
+        minPeso: 0,
+        maxPeso: 0,
+      };
+    }
+    const pesoInicial = parseFloat(paciente?.peso_inicial) || chartData[0].peso;
+    const pesoAtual = chartData[chartData.length - 1].peso;
+    const deltaTotal = parseFloat((pesoAtual - pesoInicial).toFixed(1));
+    const pesos = chartData.map((d) => d.peso);
+    const minPeso = Math.min(...pesos);
+    const maxPeso = Math.max(...pesos);
+
+    return {
+      pesoInicial,
+      pesoAtual,
+      deltaTotal,
+      minPeso,
+      maxPeso,
+    };
+  }, [chartData, paciente]);
+
+  // Formatação de data
+  const formatDate = (dateString) => {
+    if (!dateString) return '—';
+    const dt = new Date(dateString);
+    return isNaN(dt.getTime()) ? dateString : dt.toLocaleDateString('pt-BR');
+  };
+
+  // WhatsApp Link
+  const rawZap = (whatsapp || paciente?.whatsapp || '').replace(/\D/g, '');
+  const zapUrl = rawZap ? `https://wa.me/55${rawZap}` : null;
 
   if (loading) {
     return (
       <div className="perfil-loading-container">
-        <div className="spinner" />
-        <span>Carregando dados completos do paciente...</span>
+        <div className="loading-spinner" />
+        <p>Carregando perfil do paciente...</p>
       </div>
     );
   }
 
   if (!paciente) {
     return (
-      <div className="empty-pacientes-card">
+      <div className="perfil-not-found-container">
+        <AlertCircle size={48} className="icon-amber" />
         <h3>Paciente não encontrado</h3>
-        <button type="button" className="btn-secondary-action" onClick={onBack}>
+        <p>O paciente solicitado não existe ou foi removido do banco de dados.</p>
+        <button type="button" className="btn-primary-action" onClick={onBack}>
           <ArrowLeft size={16} />
-          <span>Voltar para Lista</span>
+          <span>Voltar para Lista de Pacientes</span>
         </button>
       </div>
     );
   }
 
   return (
-    <div className="paciente-perfil-page">
-      {/* Barra Superior de Ações */}
-      <div className="perfil-topbar">
+    <div className="perfil-view-wrapper fade-in">
+      {/* Topbar de Navegação e Ações */}
+      <div className="perfil-topbar-nav">
         <button type="button" className="btn-back-link" onClick={onBack}>
-          <ArrowLeft size={18} />
+          <ArrowLeft size={16} />
           <span>Voltar para Pacientes</span>
         </button>
 
@@ -356,84 +556,38 @@ export function PacientePerfilView({
               type="button"
               className="btn-analista-shortcut"
               onClick={() => onOpenAnalista(paciente.id)}
-              title="Abrir evolução gráfica no Analista"
+              title="Abrir métricas e gráficos avançados no Analista"
             >
               <TrendingUp size={16} />
               <span>Ver no Analista</span>
             </button>
           )}
 
-          {isEditing ? (
-            <>
-              <button
-                type="button"
-                className="btn-secondary-action"
-                onClick={() => {
-                  populateForm(paciente);
-                  setIsEditing(false);
-                }}
-                disabled={saving}
-              >
-                Cancelar Edição
-              </button>
-              <button
-                type="button"
-                className="btn-primary-action"
-                onClick={handleSaveChanges}
-                disabled={saving}
-              >
-                {saving ? (
-                  <>
-                    <div className="spinner-sm" />
-                    <span>Salvando...</span>
-                  </>
-                ) : (
-                  <>
-                    <Save size={16} />
-                    <span>Salvar Alterações</span>
-                  </>
-                )}
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                className="btn-edit-action"
-                onClick={() => setIsEditing(true)}
-              >
-                <Edit3 size={16} />
-                <span>Editar Informações</span>
-              </button>
-              <button
-                type="button"
-                className="btn-delete-action"
-                onClick={() => setShowDeleteModal(true)}
-                title="Excluir paciente"
-              >
-                <Trash2 size={16} />
-              </button>
-            </>
-          )}
+          <button
+            type="button"
+            className="btn-delete-action"
+            onClick={() => setShowDeleteModal(true)}
+            title="Excluir paciente permanentemente"
+          >
+            <Trash2 size={16} />
+          </button>
         </div>
       </div>
 
-      {/* Banner de Notificação / Feedback */}
+      {/* Banner de Feedback/Toast */}
       {feedback && (
-        <div className={`form-alert-banner ${feedback.type === 'error' ? 'alert-error' : 'alert-success'} fade-in`}>
-          {feedback.type === 'error' ? <AlertCircle size={18} /> : <CheckCircle2 size={18} />}
+        <div className={`form-alert-banner alert-${feedback.type} fade-in`}>
+          {feedback.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
           <span>{feedback.message}</span>
-          <button
-            type="button"
-            className="alert-close-btn"
-            onClick={() => setFeedback(null)}
-          >
-            ×
+          <button type="button" className="alert-close-btn" onClick={() => setFeedback(null)}>
+            <X size={16} />
           </button>
         </div>
       )}
 
-      {/* Cabeçalho do Perfil (Card Hero) */}
+      {/* =======================================================================
+          HERO CARD — CABEÇALHO DO PACIENTE COM MÉTRICAS RÁPIDAS
+          ======================================================================= */}
       <div className="perfil-hero-card">
         <div className="perfil-hero-left">
           <div className="perfil-avatar-circle">
@@ -441,30 +595,31 @@ export function PacientePerfilView({
           </div>
           <div className="perfil-hero-info">
             <div className="perfil-name-row">
-              <h1 className="perfil-patient-name">{paciente.nome}</h1>
+              <h2 className="perfil-patient-name">{paciente.nome}</h2>
               {calculatedAge !== null && (
                 <span className="hero-age-pill">{calculatedAge} anos</span>
               )}
             </div>
 
+            {/* Chips de Contato */}
             <div className="perfil-contact-chips">
               {paciente.email && (
-                <div className="contact-chip-item">
+                <a href={`mailto:${paciente.email}`} className="contact-chip-item">
                   <Mail size={14} />
                   <span>{paciente.email}</span>
-                </div>
+                </a>
               )}
-              {paciente.whatsapp && (
+              {paciente.whatsapp && zapUrl && (
                 <a
-                  href={`https://wa.me/${paciente.whatsapp.replace(/\D/g, '')}`}
+                  href={zapUrl}
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                   className="contact-chip-item chip-whatsapp"
                   title="Conversar no WhatsApp"
                 >
                   <MessageCircle size={14} />
                   <span>{paciente.whatsapp}</span>
-                  <ExternalLink size={12} className="ext-icon" />
+                  <ExternalLink size={11} className="ext-icon" />
                 </a>
               )}
               {paciente.telefone && !paciente.whatsapp && (
@@ -566,998 +721,1610 @@ export function PacientePerfilView({
         </div>
       </div>
 
+      {/* =======================================================================
+          NAVEGAÇÃO DAS 3 SEÇÕES PRINCIPAIS (PROMPT 5)
+          1. Dados do Paciente | 2. Consultas | 3. Planos Alimentares
+          ======================================================================= */}
+      <div className="perfil-main-sections-bar">
+        <button
+          type="button"
+          className={`perfil-section-btn ${activeSection === 'dados' ? 'active' : ''}`}
+          onClick={() => setActiveSection('dados')}
+        >
+          <User size={18} />
+          <span>1. Dados do Paciente</span>
+        </button>
 
-      {/* Navegação de Abas do Perfil */}
-      <div className="perfil-tabs-bar">
         <button
           type="button"
-          className={`perfil-tab-link ${activeTab === 'resumo' ? 'active' : ''}`}
-          onClick={() => setActiveTab('resumo')}
+          className={`perfil-section-btn ${activeSection === 'consultas' ? 'active' : ''}`}
+          onClick={() => setActiveSection('consultas')}
         >
-          <Sparkles size={16} />
-          <span>Visão Geral</span>
+          <CalendarCheck size={18} />
+          <span>2. Consultas</span>
+          <span className="section-counter-pill">{consultas.length}</span>
         </button>
+
         <button
           type="button"
-          className={`perfil-tab-link ${activeTab === 'pessoal' ? 'active' : ''}`}
-          onClick={() => setActiveTab('pessoal')}
+          className={`perfil-section-btn ${activeSection === 'planos' ? 'active' : ''}`}
+          onClick={() => setActiveSection('planos')}
         >
-          <User size={16} />
-          <span>Pessoal</span>
-        </button>
-        <button
-          type="button"
-          className={`perfil-tab-link ${activeTab === 'clinico' ? 'active' : ''}`}
-          onClick={() => setActiveTab('clinico')}
-        >
-          <HeartPulse size={16} />
-          <span>Clínico</span>
-        </button>
-        <button
-          type="button"
-          className={`perfil-tab-link ${activeTab === 'habitos' ? 'active' : ''}`}
-          onClick={() => setActiveTab('habitos')}
-        >
-          <Coffee size={16} />
-          <span>Hábitos</span>
-        </button>
-        <button
-          type="button"
-          className={`perfil-tab-link ${activeTab === 'consultas' ? 'active' : ''}`}
-          onClick={() => setActiveTab('consultas')}
-        >
-          <Clock size={16} />
-          <span>Consultas ({consultas.length})</span>
+          <Utensils size={18} />
+          <span>3. Planos Alimentares</span>
+          <span className="section-counter-pill">{planos.length}</span>
         </button>
       </div>
 
-      {/* ===================================================================
-          CONTEÚDO DAS ABAS / SEÇÕES DO PERFIL
-          =================================================================== */}
-      <div className="perfil-card-content">
-        {/* ABA: VISÃO GERAL / RESUMO */}
-        {activeTab === 'resumo' && !isEditing && (
-          <div className="perfil-summary-grid fade-in">
-            {/* Bloco 1: Clínico Resumo */}
-            <div className="summary-section-box">
-              <div className="section-box-header">
-                <HeartPulse size={18} className="icon-emerald" />
-                <h4>Perfil Clínico e Saúde</h4>
-              </div>
-              <div className="section-box-body">
-                <div className="info-detail-row">
-                  <span className="info-detail-label">Nível de Atividade:</span>
-                  <span className="info-detail-value">{paciente.nivel_atividade || 'Não informado'}</span>
-                </div>
-                <div className="info-detail-row">
-                  <span className="info-detail-label">Patologias:</span>
-                  <div className="info-tags-list">
-                    {paciente.patologias && paciente.patologias.length > 0 ? (
-                      paciente.patologias.map((p) => <span key={p} className="badge-tag">{p}</span>)
-                    ) : (
-                      <span className="info-detail-value">Nenhuma informada</span>
-                    )}
-                  </div>
-                </div>
-                <div className="info-detail-row">
-                  <span className="info-detail-label">Restrições Alimentares:</span>
-                  <div className="info-tags-list">
-                    {paciente.restricoes_alimentares && paciente.restricoes_alimentares.length > 0 ? (
-                      paciente.restricoes_alimentares.map((r) => <span key={r} className="badge-tag">{r}</span>)
-                    ) : (
-                      <span className="info-detail-value">Nenhuma informada</span>
-                    )}
-                  </div>
-                </div>
-                <div className="info-detail-row">
-                  <span className="info-detail-label">Alergias:</span>
-                  <div className="info-tags-list">
-                    {paciente.alergias && paciente.alergias.length > 0 ? (
-                      paciente.alergias.map((a) => <span key={a} className="badge-tag badge-tag-alert">{a}</span>)
-                    ) : (
-                      <span className="info-detail-value">Nenhuma informada</span>
-                    )}
-                  </div>
-                </div>
-                {paciente.medicamentos && (
-                  <div className="info-detail-block">
-                    <span className="info-detail-label">Medicamentos Contínuos:</span>
-                    <p className="info-text-content">{paciente.medicamentos}</p>
-                  </div>
-                )}
-                {paciente.suplementos && (
-                  <div className="info-detail-block">
-                    <span className="info-detail-label">Suplementos em Uso:</span>
-                    <p className="info-text-content">{paciente.suplementos}</p>
-                  </div>
-                )}
-              </div>
-            </div>
+      {/* =======================================================================
+          SEÇÃO 1 — DADOS DO PACIENTE (3 ABAS: PESSOAL, CLÍNICO E HÁBITOS)
+          Editáveis diretamente com botão "Salvar alterações"
+          ======================================================================= */}
+      {activeSection === 'dados' && (
+        <div className="perfil-section-content fade-in">
+          {/* Sub-abas da Seção de Dados */}
+          <div className="perfil-subtabs-nav">
+            <button
+              type="button"
+              className={`subtab-pill-btn ${dadosSubTab === 'pessoal' ? 'active' : ''}`}
+              onClick={() => setDadosSubTab('pessoal')}
+            >
+              <User size={15} />
+              <span>Pessoal</span>
+            </button>
+            <button
+              type="button"
+              className={`subtab-pill-btn ${dadosSubTab === 'clinico' ? 'active' : ''}`}
+              onClick={() => setDadosSubTab('clinico')}
+            >
+              <HeartPulse size={15} />
+              <span>Clínico</span>
+            </button>
+            <button
+              type="button"
+              className={`subtab-pill-btn ${dadosSubTab === 'habitos' ? 'active' : ''}`}
+              onClick={() => setDadosSubTab('habitos')}
+            >
+              <Coffee size={15} />
+              <span>Hábitos</span>
+            </button>
 
-            {/* Bloco 2: Hábitos Resumo */}
-            <div className="summary-section-box">
-              <div className="section-box-header">
-                <Coffee size={18} className="icon-amber" />
-                <h4>Hábitos e Rotina</h4>
-              </div>
-              <div className="section-box-body">
-                <div className="info-detail-row">
-                  <span className="info-detail-label">Refeições / Dia:</span>
-                  <span className="info-detail-value">
-                    {paciente.refeicoes_por_dia ? `${paciente.refeicoes_por_dia} refeições` : 'Não informado'}
-                  </span>
-                </div>
-                <div className="info-detail-row water-detail-row">
-                  <span className="info-detail-label">Ingestão Hídrica:</span>
-                  <div className="water-summary-status-wrap">
-                    <span className="info-detail-value">
-                      {paciente.litros_agua ? `${paciente.litros_agua} litros/dia` : 'Não informado'}
-                    </span>
-                    {calculatedWater && (
-                      <span className="water-meta-chip">
-                        Meta: <strong>{paciente.atividade_fisica ? calculatedWater.formattedActive : calculatedWater.formatted}</strong> ({calculatedWater.rateMl} ml/kg)
-                      </span>
-                    )}
-                    {paciente.litros_agua && calculatedWater && (
-                      parseFloat(paciente.litros_agua) >= (paciente.atividade_fisica ? calculatedWater.activeLiters : calculatedWater.baseLiters) ? (
-                        <span className="water-badge-success">
-                          <CheckCircle2 size={12} /> Meta Atingida
-                        </span>
-                      ) : (
-                        <span className="water-badge-warning">
-                          <AlertCircle size={12} /> {(calculatedWater.baseLiters - parseFloat(paciente.litros_agua)).toFixed(1)} L abaixo da meta
-                        </span>
-                      )
-                    )}
-                  </div>
-                </div>
-
-                <div className="info-detail-row">
-                  <span className="info-detail-label">Horário de Sono:</span>
-                  <span className="info-detail-value">
-                    {paciente.horario_acorda || paciente.horario_dorme
-                      ? `Acorda: ${paciente.horario_acorda || '—'} | Dorme: ${paciente.horario_dorme || '—'}`
-                      : 'Não informado'}
-                  </span>
-                </div>
-                <div className="info-detail-row">
-                  <span className="info-detail-label">Atividade Física:</span>
-                  <span className="info-detail-value">
-                    {paciente.atividade_fisica ? 'Sim' : 'Não'}
-                    {paciente.atividade_fisica_descricao ? ` (${paciente.atividade_fisica_descricao})` : ''}
-                  </span>
-                </div>
-                {paciente.observacoes && (
-                  <div className="info-detail-block">
-                    <span className="info-detail-label">Observações Clínicas:</span>
-                    <p className="info-text-content">{paciente.observacoes}</p>
-                  </div>
+            {/* Botão de Salvar Alterações na Barra Superior de Sub-abas */}
+            <div className="subtabs-action-right">
+              <button
+                type="button"
+                className="btn-save-dados-action"
+                onClick={handleSaveDados}
+                disabled={savingDados}
+              >
+                {savingDados ? (
+                  <>
+                    <div className="btn-spinner" />
+                    <span>Salvando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save size={16} />
+                    <span>Salvar alterações</span>
+                  </>
                 )}
-              </div>
+              </button>
             </div>
           </div>
-        )}
 
-        {/* ABA: DADOS PESSOAIS */}
-        {(activeTab === 'pessoal' || (isEditing && activeTab === 'pessoal')) && (
-          <div className="tab-content-panel fade-in">
-            <div className="tab-panel-header">
-              <div className="panel-title-group">
-                <User size={20} className="panel-icon" />
-                <div>
-                  <h3 className="panel-heading">Dados Pessoais</h3>
-                  <p className="panel-subheading">Informações de contato e identificação do paciente</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="form-grid-layout">
-              <div className="form-field-group col-span-2">
-                <label className="field-label required" htmlFor="edit-nome">
-                  Nome Completo
-                </label>
-                <div className="field-input-wrapper">
-                  <input
-                    id="edit-nome"
-                    type="text"
-                    className="field-input"
-                    value={nome}
-                    onChange={(e) => setNome(e.target.value)}
-                    disabled={!isEditing}
-                  />
-                </div>
-              </div>
-
-              <div className="form-field-group">
-                <label className="field-label" htmlFor="edit-nasc">
-                  Data de Nascimento
-                </label>
-                <div className="field-input-wrapper">
-                  <input
-                    id="edit-nasc"
-                    type="date"
-                    className="field-input"
-                    value={dataNascimento}
-                    onChange={(e) => setDataNascimento(e.target.value)}
-                    disabled={!isEditing}
-                  />
-                </div>
-                {calculatedAge !== null && (
-                  <div className="field-calc-badge">
-                    <Sparkles size={13} />
-                    <span>Idade: <strong>{calculatedAge} anos</strong></span>
-                  </div>
-                )}
-              </div>
-
-              <div className="form-field-group">
-                <label className="field-label">Sexo</label>
-                <div className="radio-pills-group">
-                  {['Feminino', 'Masculino', 'Outro'].map((item) => (
-                    <button
-                      key={item}
-                      type="button"
-                      className={`radio-pill-btn ${sexo === item ? 'active' : ''}`}
-                      onClick={() => isEditing && setSexo(sexo === item ? '' : item)}
-                      disabled={!isEditing}
-                    >
-                      {item}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="form-field-group">
-                <label className="field-label" htmlFor="edit-tel">
-                  Telefone
-                </label>
-                <div className="field-input-wrapper">
-                  <Phone size={16} className="input-prefix-icon" />
-                  <input
-                    id="edit-tel"
-                    type="tel"
-                    className="field-input with-icon"
-                    placeholder="(11) 3456-7890"
-                    value={telefone}
-                    onChange={(e) => setTelefone(formatPhone(e.target.value))}
-                    disabled={!isEditing}
-                  />
-                </div>
-              </div>
-
-              <div className="form-field-group">
-                <label className="field-label" htmlFor="edit-zap">
-                  WhatsApp
-                </label>
-                <div className="field-input-wrapper">
-                  <Phone size={16} className="input-prefix-icon whatsapp-icon-color" />
-                  <input
-                    id="edit-zap"
-                    type="tel"
-                    className="field-input with-icon"
-                    placeholder="(11) 98765-4321"
-                    value={whatsapp}
-                    onChange={(e) => setWhatsapp(formatPhone(e.target.value))}
-                    disabled={!isEditing}
-                  />
-                </div>
-              </div>
-
-              <div className="form-field-group col-span-2">
-                <label className="field-label" htmlFor="edit-email">
-                  E-mail
-                </label>
-                <div className="field-input-wrapper">
-                  <Mail size={16} className="input-prefix-icon" />
-                  <input
-                    id="edit-email"
-                    type="email"
-                    className="field-input with-icon"
-                    placeholder="paciente@exemplo.com.br"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    disabled={!isEditing}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ABA: DADOS CLÍNICOS */}
-        {(activeTab === 'clinico' || (isEditing && activeTab === 'clinico')) && (
-          <div className="tab-content-panel fade-in">
-            <div className="tab-panel-header">
-              <div className="panel-title-group">
-                <HeartPulse size={20} className="panel-icon icon-emerald" />
-                <div>
-                  <h3 className="panel-heading">Dados Clínicos e Antropométricos</h3>
-                  <p className="panel-subheading">
-                    Métricas biométricas, objetivos, patologias, restrições e medicações
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="form-grid-layout">
-              <div className="form-field-group">
-                <label className="field-label" htmlFor="edit-peso">
-                  Peso Atual
-                </label>
-                <div className="field-input-wrapper suffix-wrapper">
-                  <Weight size={16} className="input-prefix-icon" />
-                  <input
-                    id="edit-peso"
-                    type="number"
-                    step="0.1"
-                    className="field-input with-icon with-suffix"
-                    value={pesoAtual}
-                    onChange={(e) => setPesoAtual(e.target.value)}
-                    disabled={!isEditing}
-                  />
-                  <span className="input-suffix-tag">kg</span>
-                </div>
-              </div>
-
-              <div className="form-field-group">
-                <label className="field-label" htmlFor="edit-altura">
-                  Altura
-                </label>
-                <div className="field-input-wrapper suffix-wrapper">
-                  <Ruler size={16} className="input-prefix-icon" />
-                  <input
-                    id="edit-altura"
-                    type="number"
-                    step="0.5"
-                    className="field-input with-icon with-suffix"
-                    value={altura}
-                    onChange={(e) => setAltura(e.target.value)}
-                    disabled={!isEditing}
-                  />
-                  <span className="input-suffix-tag">cm</span>
-                </div>
-              </div>
-
-              {/* IMC */}
-              <div className="form-field-group col-span-2">
-                <label className="field-label">IMC (Índice de Massa Corporal)</label>
-                <div className="imc-calc-display-card">
-                  <div className="imc-value-box">
-                    <span className="imc-label">Resultado:</span>
-                    <span className="imc-value-number">
-                      {calculatedIMC !== null ? `${calculatedIMC} kg/m²` : '—'}
-                    </span>
-                  </div>
-                  {imcBadge && (
-                    <div className={`imc-status-badge ${imcBadge.class}`}>
-                      <Activity size={14} />
-                      <span>{imcBadge.label}</span>
+          <form onSubmit={handleSaveDados} className="perfil-card-content">
+            {/* SUB-ABA 1: DADOS PESSOAIS */}
+            {dadosSubTab === 'pessoal' && (
+              <div className="tab-content-panel fade-in">
+                <div className="tab-panel-header">
+                  <div className="panel-title-group">
+                    <User size={20} className="panel-icon icon-blue" />
+                    <div>
+                      <h3 className="panel-heading">Dados Pessoais</h3>
+                      <p className="panel-subheading">Informações de contato e identificação do paciente (editável)</p>
                     </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Objetivos */}
-              <div className="form-field-group col-span-2">
-                <label className="field-label">Objetivos</label>
-                <div className="chips-cloud-wrapper">
-                  {OBJETIVOS_OPCOES.map((obj) => {
-                    const isSelected = objetivos.includes(obj);
-                    return (
-                      <button
-                        key={obj}
-                        type="button"
-                        className={`selection-chip ${isSelected ? 'selected' : ''}`}
-                        onClick={() => {
-                          if (!isEditing) return;
-                          if (isSelected) {
-                            setObjetivos(objetivos.filter((o) => o !== obj));
-                          } else {
-                            setObjetivos([...objetivos, obj]);
-                          }
-                        }}
-                        disabled={!isEditing}
-                      >
-                        {isSelected && <CheckCircle2 size={14} />}
-                        <span>{obj}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="field-sub-input" style={{ marginTop: '0.75rem' }}>
-                  <input
-                    type="text"
-                    className="field-input"
-                    placeholder="Outro objetivo ou detalhamento..."
-                    value={objetivoTexto}
-                    onChange={(e) => setObjetivoTexto(e.target.value)}
-                    disabled={!isEditing}
-                  />
-                </div>
-              </div>
-
-              {/* Nível de Atividade */}
-              <div className="form-field-group col-span-2">
-                <label className="field-label">Nível de Atividade Física</label>
-                <div className="activity-cards-grid">
-                  {NIVEIS_ATIVIDADE.map((lvl) => {
-                    const isSelected = nivelAtividade === lvl.id;
-                    return (
-                      <div
-                        key={lvl.id}
-                        className={`activity-select-card ${isSelected ? 'selected' : ''} ${!isEditing ? 'card-disabled' : ''}`}
-                        onClick={() => isEditing && setNivelAtividade(isSelected ? '' : lvl.id)}
-                      >
-                        <div className="activity-card-header">
-                          <strong>{lvl.label}</strong>
-                          {isSelected && <CheckCircle2 size={16} className="check-icon" />}
-                        </div>
-                        <span className="activity-card-desc">{lvl.desc}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Patologias */}
-              <div className="form-field-group col-span-2">
-                <label className="field-label">Patologias ou Condições de Saúde</label>
-                <div className="chips-cloud-wrapper">
-                  <button
-                    type="button"
-                    className={`selection-chip chip-none ${patologias.includes('Nenhum') ? 'selected-none' : ''}`}
-                    onClick={() => isEditing && handleToggleMultiSelect(patologias, setPatologias, 'Nenhum')}
-                    disabled={!isEditing}
-                  >
-                    {patologias.includes('Nenhum') && <CheckCircle2 size={14} />}
-                    <span>Nenhum</span>
-                  </button>
-
-                  {PATOLOGIAS_OPCOES.map((pat) => {
-                    const isSelected = patologias.includes(pat);
-                    return (
-                      <button
-                        key={pat}
-                        type="button"
-                        className={`selection-chip ${isSelected ? 'selected' : ''}`}
-                        onClick={() => isEditing && handleToggleMultiSelect(patologias, setPatologias, pat)}
-                        disabled={!isEditing}
-                      >
-                        {isSelected && <CheckCircle2 size={14} />}
-                        <span>{pat}</span>
-                      </button>
-                    );
-                  })}
-
-                  {patologias
-                    .filter((p) => p !== 'Nenhum' && !PATOLOGIAS_OPCOES.includes(p))
-                    .map((custom) => (
-                      <span key={custom} className="selection-chip custom-chip selected">
-                        <span>{custom}</span>
-                        {isEditing && (
-                          <button
-                            type="button"
-                            className="chip-remove-btn"
-                            onClick={() => handleRemoveItem(custom, patologias, setPatologias)}
-                          >
-                            <X size={12} />
-                          </button>
-                        )}
-                      </span>
-                    ))}
-                </div>
-
-                {isEditing && (
-                  <div className="add-tag-inline-form">
-                    <input
-                      type="text"
-                      className="field-input add-tag-input"
-                      placeholder="Adicionar outra patologia..."
-                      value={customPatologia}
-                      onChange={(e) => setCustomPatologia(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleAddCustomItem(customPatologia, setCustomPatologia, patologias, setPatologias);
-                        }
-                      }}
-                    />
-                    <button
-                      type="button"
-                      className="btn-add-tag"
-                      onClick={() => handleAddCustomItem(customPatologia, setCustomPatologia, patologias, setPatologias)}
-                    >
-                      <Plus size={15} />
-                      <span>Adicionar</span>
-                    </button>
                   </div>
-                )}
-              </div>
-
-              {/* Restrições */}
-              <div className="form-field-group col-span-2">
-                <label className="field-label">Restrições Alimentares</label>
-                <div className="chips-cloud-wrapper">
-                  <button
-                    type="button"
-                    className={`selection-chip chip-none ${restricoes.includes('Nenhum') ? 'selected-none' : ''}`}
-                    onClick={() => isEditing && handleToggleMultiSelect(restricoes, setRestricoes, 'Nenhum')}
-                    disabled={!isEditing}
-                  >
-                    {restricoes.includes('Nenhum') && <CheckCircle2 size={14} />}
-                    <span>Nenhum</span>
-                  </button>
-
-                  {RESTRICOES_OPCOES.map((rest) => {
-                    const isSelected = restricoes.includes(rest);
-                    return (
-                      <button
-                        key={rest}
-                        type="button"
-                        className={`selection-chip ${isSelected ? 'selected' : ''}`}
-                        onClick={() => isEditing && handleToggleMultiSelect(restricoes, setRestricoes, rest)}
-                        disabled={!isEditing}
-                      >
-                        {isSelected && <CheckCircle2 size={14} />}
-                        <span>{rest}</span>
-                      </button>
-                    );
-                  })}
-
-                  {restricoes
-                    .filter((r) => r !== 'Nenhum' && !RESTRICOES_OPCOES.includes(r))
-                    .map((custom) => (
-                      <span key={custom} className="selection-chip custom-chip selected">
-                        <span>{custom}</span>
-                        {isEditing && (
-                          <button
-                            type="button"
-                            className="chip-remove-btn"
-                            onClick={() => handleRemoveItem(custom, restricoes, setRestricoes)}
-                          >
-                            <X size={12} />
-                          </button>
-                        )}
-                      </span>
-                    ))}
                 </div>
 
-                {isEditing && (
-                  <div className="add-tag-inline-form">
-                    <input
-                      type="text"
-                      className="field-input add-tag-input"
-                      placeholder="Adicionar outra restrição..."
-                      value={customRestricao}
-                      onChange={(e) => setCustomRestricao(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleAddCustomItem(customRestricao, setCustomRestricao, restricoes, setRestricoes);
-                        }
-                      }}
-                    />
-                    <button
-                      type="button"
-                      className="btn-add-tag"
-                      onClick={() => handleAddCustomItem(customRestricao, setCustomRestricao, restricoes, setRestricoes)}
-                    >
-                      <Plus size={15} />
-                      <span>Adicionar</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Alergias */}
-              <div className="form-field-group col-span-2">
-                <label className="field-label">Alergias Alimentares</label>
-                <div className="chips-cloud-wrapper">
-                  <button
-                    type="button"
-                    className={`selection-chip chip-none ${alergias.includes('Nenhum') ? 'selected-none' : ''}`}
-                    onClick={() => isEditing && handleToggleMultiSelect(alergias, setAlergias, 'Nenhum')}
-                    disabled={!isEditing}
-                  >
-                    {alergias.includes('Nenhum') && <CheckCircle2 size={14} />}
-                    <span>Nenhum</span>
-                  </button>
-
-                  {ALERGIAS_OPCOES.map((alerg) => {
-                    const isSelected = alergias.includes(alerg);
-                    return (
-                      <button
-                        key={alerg}
-                        type="button"
-                        className={`selection-chip ${isSelected ? 'selected' : ''}`}
-                        onClick={() => isEditing && handleToggleMultiSelect(alergias, setAlergias, alerg)}
-                        disabled={!isEditing}
-                      >
-                        {isSelected && <CheckCircle2 size={14} />}
-                        <span>{alerg}</span>
-                      </button>
-                    );
-                  })}
-
-                  {alergias
-                    .filter((a) => a !== 'Nenhum' && !ALERGIAS_OPCOES.includes(a))
-                    .map((custom) => (
-                      <span key={custom} className="selection-chip custom-chip selected">
-                        <span>{custom}</span>
-                        {isEditing && (
-                          <button
-                            type="button"
-                            className="chip-remove-btn"
-                            onClick={() => handleRemoveItem(custom, alergias, setAlergias)}
-                          >
-                            <X size={12} />
-                          </button>
-                        )}
-                      </span>
-                    ))}
-                </div>
-
-                {isEditing && (
-                  <div className="add-tag-inline-form">
-                    <input
-                      type="text"
-                      className="field-input add-tag-input"
-                      placeholder="Adicionar outra alergia..."
-                      value={customAlergia}
-                      onChange={(e) => setCustomAlergia(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleAddCustomItem(customAlergia, setCustomAlergia, alergias, setAlergias);
-                        }
-                      }}
-                    />
-                    <button
-                      type="button"
-                      className="btn-add-tag"
-                      onClick={() => handleAddCustomItem(customAlergia, setCustomAlergia, alergias, setAlergias)}
-                    >
-                      <Plus size={15} />
-                      <span>Adicionar</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Medicamentos e Suplementos */}
-              <div className="form-field-group">
-                <label className="field-label" htmlFor="edit-med">
-                  Medicamentos Contínuos
-                </label>
-                <div className="field-input-wrapper">
-                  <textarea
-                    id="edit-med"
-                    rows={3}
-                    className="field-textarea"
-                    value={medicamentos}
-                    onChange={(e) => setMedicamentos(e.target.value)}
-                    disabled={!isEditing}
-                  />
-                </div>
-              </div>
-
-              <div className="form-field-group">
-                <label className="field-label" htmlFor="edit-sup">
-                  Suplementos em Uso
-                </label>
-                <div className="field-input-wrapper">
-                  <textarea
-                    id="edit-sup"
-                    rows={3}
-                    className="field-textarea"
-                    value={suplementos}
-                    onChange={(e) => setSuplementos(e.target.value)}
-                    disabled={!isEditing}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ABA: HÁBITOS */}
-        {(activeTab === 'habitos' || (isEditing && activeTab === 'habitos')) && (
-          <div className="tab-content-panel fade-in">
-            <div className="tab-panel-header">
-              <div className="panel-title-group">
-                <Coffee size={20} className="panel-icon icon-amber" />
-                <div>
-                  <h3 className="panel-heading">Hábitos e Rotina</h3>
-                  <p className="panel-subheading">Horários de sono, ingestão de água e atividade física</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="form-grid-layout">
-              <div className="form-field-group">
-                <label className="field-label" htmlFor="edit-ref">
-                  Refeições por dia
-                </label>
-                <div className="field-input-wrapper">
-                  <input
-                    id="edit-ref"
-                    type="number"
-                    className="field-input"
-                    value={refeicoesPorDia}
-                    onChange={(e) => setRefeicoesPorDia(e.target.value)}
-                    disabled={!isEditing}
-                  />
-                </div>
-              </div>
-
-              <div className="form-field-group col-span-2">
-                <div className="field-label-row">
-                  <label className="field-label" htmlFor="edit-agua">
-                    Quantidade de água por dia
-                  </label>
-                  {calculatedWater && (
-                    <span className="field-calc-badge-water">
-                      <Droplets size={12} /> Meta ideal: <strong>{atividadeFisica ? calculatedWater.formattedActive : calculatedWater.formatted}</strong> ({calculatedWater.rateMl} ml/kg)
-                    </span>
-                  )}
-                </div>
-                <div className="water-input-action-row">
-                  <div className="field-input-wrapper suffix-wrapper flex-1">
-                    <Droplets size={16} className="input-prefix-icon icon-cyan" />
-                    <input
-                      id="edit-agua"
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      max="15"
-                      className="field-input with-icon with-suffix"
-                      value={litrosAgua}
-                      onChange={(e) => setLitrosAgua(e.target.value)}
-                      disabled={!isEditing}
-                    />
-                    <span className="input-suffix-tag">litros</span>
-                  </div>
-                  {isEditing && calculatedWater && (
-                    <button
-                      type="button"
-                      className="btn-apply-water-auto"
-                      onClick={() => setLitrosAgua(String(atividadeFisica ? calculatedWater.activeLiters : calculatedWater.baseLiters))}
-                      title="Aplicar cálculo automático de água recomendado"
-                    >
-                      <Sparkles size={14} />
-                      <span>Usar Meta ({atividadeFisica ? calculatedWater.formattedActive : calculatedWater.formatted})</span>
-                    </button>
-                  )}
-                </div>
-
-                {/* Card Explicativo de Consumo de Água */}
-                {calculatedWater && (
-                  <div className="water-calc-info-card fade-in">
-                    <div className="water-calc-info-left">
-                      <div className="water-calc-icon-box">
-                        <Droplets size={20} />
-                      </div>
-                      <div>
-                        <div className="water-calc-title-row">
-                          <strong className="water-calc-highlight">{calculatedWater.formatted} / dia</strong>
-                          <span className="water-calc-ml-sub">({calculatedWater.formattedMl})</span>
-                        </div>
-                        <span className="water-calc-explanation">
-                          Base: {pesoAtual || paciente.peso_inicial} kg × {calculatedWater.rateMl} ml/kg ({calculatedWater.faixaDesc})
-                        </span>
-                      </div>
-                    </div>
-                    {((isEditing ? atividadeFisica : paciente.atividade_fisica)) && (
-                      <div className="water-calc-active-badge">
-                        <span>+500 ml pelo treino: <strong>{calculatedWater.formattedActive}</strong></span>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-
-              <div className="form-field-group">
-                <div className="field-label-row">
-                  <label className="field-label" htmlFor="edit-acorda">
-                    Horário que acorda
-                  </label>
-                  {isEditing && <span className="field-hint-chip">Ex: 6 → 06:00</span>}
-                </div>
-                <div className="field-input-wrapper">
-                  <Clock size={16} className="input-prefix-icon" />
-                  <input
-                    id="edit-acorda"
-                    type="text"
-                    className="field-input with-icon"
-                    value={horarioAcorda}
-                    onChange={(e) => setHorarioAcorda(e.target.value)}
-                    onBlur={(e) => setHorarioAcorda(formatSmartTime(e.target.value))}
-                    disabled={!isEditing}
-                  />
-                </div>
-              </div>
-
-              <div className="form-field-group">
-                <div className="field-label-row">
-                  <label className="field-label" htmlFor="edit-dorme">
-                    Horário que dorme
-                  </label>
-                  {isEditing && <span className="field-hint-chip">Ex: 23 → 23:00</span>}
-                </div>
-                <div className="field-input-wrapper">
-                  <Clock size={16} className="input-prefix-icon" />
-                  <input
-                    id="edit-dorme"
-                    type="text"
-                    className="field-input with-icon"
-                    value={horarioDorme}
-                    onChange={(e) => setHorarioDorme(e.target.value)}
-                    onBlur={(e) => setHorarioDorme(formatSmartTime(e.target.value))}
-                    disabled={!isEditing}
-                  />
-                </div>
-              </div>
-
-              <div className="form-field-group col-span-2">
-                <label className="field-label">Pratica atividade física?</label>
-                <div className="toggle-selection-row">
-                  <button
-                    type="button"
-                    className={`toggle-option-btn ${!atividadeFisica ? 'active' : ''}`}
-                    onClick={() => isEditing && setAtividadeFisica(false)}
-                    disabled={!isEditing}
-                  >
-                    Não
-                  </button>
-                  <button
-                    type="button"
-                    className={`toggle-option-btn ${atividadeFisica ? 'active' : ''}`}
-                    onClick={() => isEditing && setAtividadeFisica(true)}
-                    disabled={!isEditing}
-                  >
-                    Sim
-                  </button>
-                </div>
-
-                {atividadeFisica && (
-                  <div className="conditional-expand-box fade-in" style={{ marginTop: '0.75rem' }}>
-                    <label className="field-sublabel" htmlFor="edit-atv-desc">
-                      Atividade física e frequência semanal:
+                <div className="form-grid-layout">
+                  <div className="form-field-group col-span-2">
+                    <label className="field-label required" htmlFor="edit-nome">
+                      Nome Completo
                     </label>
-                    <input
-                      id="edit-atv-desc"
-                      type="text"
-                      className="field-input"
-                      value={atividadeDescricao}
-                      onChange={(e) => setAtividadeDescricao(e.target.value)}
-                      disabled={!isEditing}
-                    />
+                    <div className="field-input-wrapper">
+                      <input
+                        id="edit-nome"
+                        type="text"
+                        className="field-input"
+                        value={nome}
+                        onChange={(e) => {
+                          setNome(e.target.value);
+                          setIsDirty(true);
+                        }}
+                        placeholder="Nome completo do paciente"
+                        required
+                      />
+                    </div>
                   </div>
-                )}
-              </div>
 
-              <div className="form-field-group col-span-2">
-                <label className="field-label" htmlFor="edit-obs">
-                  Observações Gerais
-                </label>
-                <div className="field-input-wrapper">
-                  <textarea
-                    id="edit-obs"
-                    rows={4}
-                    className="field-textarea"
-                    value={observacoes}
-                    onChange={(e) => setObservacoes(e.target.value)}
-                    disabled={!isEditing}
-                  />
+                  <div className="form-field-group">
+                    <label className="field-label" htmlFor="edit-nasc">
+                      Data de Nascimento
+                    </label>
+                    <div className="field-input-wrapper">
+                      <input
+                        id="edit-nasc"
+                        type="date"
+                        className="field-input"
+                        value={dataNascimento}
+                        onChange={(e) => {
+                          setDataNascimento(e.target.value);
+                          setIsDirty(true);
+                        }}
+                      />
+                    </div>
+                    {calculatedAge !== null && (
+                      <div className="field-calc-badge">
+                        <Sparkles size={13} />
+                        <span>Idade: <strong>{calculatedAge} anos</strong></span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="form-field-group">
+                    <label className="field-label">Sexo</label>
+                    <div className="radio-pills-group">
+                      {['Feminino', 'Masculino', 'Outro'].map((item) => (
+                        <button
+                          key={item}
+                          type="button"
+                          className={`radio-pill-btn ${sexo === item ? 'active' : ''}`}
+                          onClick={() => {
+                            setSexo(sexo === item ? '' : item);
+                            setIsDirty(true);
+                          }}
+                        >
+                          {item}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="form-field-group">
+                    <label className="field-label" htmlFor="edit-tel">
+                      Telefone
+                    </label>
+                    <div className="field-input-wrapper">
+                      <Phone size={16} className="input-prefix-icon" />
+                      <input
+                        id="edit-tel"
+                        type="tel"
+                        className="field-input with-icon"
+                        placeholder="(11) 3456-7890"
+                        value={telefone}
+                        onChange={(e) => {
+                          setTelefone(formatPhone(e.target.value));
+                          setIsDirty(true);
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-field-group">
+                    <label className="field-label" htmlFor="edit-zap">
+                      WhatsApp
+                    </label>
+                    <div className="field-input-wrapper">
+                      <Phone size={16} className="input-prefix-icon whatsapp-icon-color" />
+                      <input
+                        id="edit-zap"
+                        type="tel"
+                        className="field-input with-icon"
+                        placeholder="(11) 98765-4321"
+                        value={whatsapp}
+                        onChange={(e) => {
+                          setWhatsapp(formatPhone(e.target.value));
+                          setIsDirty(true);
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-field-group col-span-2">
+                    <label className="field-label" htmlFor="edit-email">
+                      E-mail
+                    </label>
+                    <div className="field-input-wrapper">
+                      <Mail size={16} className="input-prefix-icon" />
+                      <input
+                        id="edit-email"
+                        type="email"
+                        className="field-input with-icon"
+                        placeholder="paciente@email.com"
+                        value={email}
+                        onChange={(e) => {
+                          setEmail(e.target.value);
+                          setIsDirty(true);
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
-        )}
+            )}
 
-        {/* ABA: HISTÓRICO DE CONSULTAS */}
-        {activeTab === 'consultas' && !isEditing && (
-          <div className="perfil-consultas-section fade-in">
-            <div className="section-box-header" style={{ marginBottom: '1.25rem' }}>
-              <Clock size={20} className="icon-blue" />
-              <div>
-                <h3 className="panel-heading">Histórico de Atendimentos</h3>
-                <p className="panel-subheading">Registros de consultas, medidas e evolução do paciente</p>
-              </div>
-            </div>
+            {/* SUB-ABA 2: DADOS CLÍNICOS */}
+            {dadosSubTab === 'clinico' && (
+              <div className="tab-content-panel fade-in">
+                <div className="tab-panel-header">
+                  <div className="panel-title-group">
+                    <HeartPulse size={20} className="panel-icon icon-emerald" />
+                    <div>
+                      <h3 className="panel-heading">Dados Clínicos e Antropométricos</h3>
+                      <p className="panel-subheading">Métricas corporais, objetivos, patologias e alergias</p>
+                    </div>
+                  </div>
+                </div>
 
-            {consultas.length === 0 ? (
-              <div className="empty-consultas-box">
-                <AlertCircle size={28} />
-                <strong>Nenhuma consulta registrada ainda</strong>
-                <p>As consultas registradas aparecerão aqui com evolução biométrica.</p>
-              </div>
-            ) : (
-              <div className="consultas-timeline-wrapper">
-                {consultas.map((c, index) => (
-                  <div key={c.id || index} className="consulta-timeline-item">
-                    <div className="timeline-marker-dot" />
-                    <div className="timeline-card">
-                      <div className="timeline-card-header">
-                        <div className="timeline-date-badge">
-                          <Calendar size={14} />
-                          <span>Consulta em {formatDate(c.data_consulta)}</span>
+                <div className="form-grid-layout">
+                  {/* Peso */}
+                  <div className="form-field-group">
+                    <label className="field-label" htmlFor="edit-peso">
+                      Peso Inicial / Atual
+                    </label>
+                    <div className="field-input-wrapper suffix-wrapper">
+                      <Weight size={16} className="input-prefix-icon" />
+                      <input
+                        id="edit-peso"
+                        type="number"
+                        step="0.1"
+                        min="1"
+                        max="500"
+                        className="field-input with-icon with-suffix"
+                        placeholder="Ex: 75.5"
+                        value={pesoAtual}
+                        onChange={(e) => {
+                          setPesoAtual(e.target.value);
+                          setIsDirty(true);
+                        }}
+                      />
+                      <span className="input-suffix-tag">kg</span>
+                    </div>
+                  </div>
+
+                  {/* Altura */}
+                  <div className="form-field-group">
+                    <label className="field-label" htmlFor="edit-altura">
+                      Altura
+                    </label>
+                    <div className="field-input-wrapper suffix-wrapper">
+                      <Ruler size={16} className="input-prefix-icon" />
+                      <input
+                        id="edit-altura"
+                        type="number"
+                        step="0.5"
+                        min="30"
+                        max="250"
+                        className="field-input with-icon with-suffix"
+                        placeholder="Ex: 175"
+                        value={altura}
+                        onChange={(e) => {
+                          setAltura(e.target.value);
+                          setIsDirty(true);
+                        }}
+                      />
+                      <span className="input-suffix-tag">cm</span>
+                    </div>
+                  </div>
+
+                  {/* IMC Calculado */}
+                  <div className="form-field-group col-span-2">
+                    <label className="field-label">IMC (Índice de Massa Corporal)</label>
+                    <div className="imc-calc-display-card">
+                      <div className="imc-value-box">
+                        <span className="imc-label">Resultado:</span>
+                        <span className="imc-value-number">
+                          {calculatedIMC !== null ? `${calculatedIMC} kg/m²` : '—'}
+                        </span>
+                      </div>
+                      {imcBadge && (
+                        <div className={`imc-status-badge ${imcBadge.class}`}>
+                          <Activity size={14} />
+                          <span>{imcBadge.label}</span>
                         </div>
-                        {c.proximo_retorno && (
-                          <span className="retorno-status-chip">
-                            Retorno agendado: {formatDate(c.proximo_retorno)}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="timeline-metrics-pills">
-                        {c.peso && (
-                          <div className="tm-pill">
-                            <span>Peso:</span> <strong>{c.peso} kg</strong>
-                          </div>
-                        )}
-                        {c.cintura && (
-                          <div className="tm-pill">
-                            <span>Cintura:</span> <strong>{c.cintura} cm</strong>
-                          </div>
-                        )}
-                        {c.quadril && (
-                          <div className="tm-pill">
-                            <span>Quadril:</span> <strong>{c.quadril} cm</strong>
-                          </div>
-                        )}
-                        {c.percentual_gordura && (
-                          <div className="tm-pill">
-                            <span>% Gordura:</span> <strong>{c.percentual_gordura}%</strong>
-                          </div>
-                        )}
-                      </div>
-
-                      {c.observacoes && (
-                        <p className="timeline-obs-text">{c.observacoes}</p>
                       )}
                     </div>
                   </div>
-                ))}
+
+                  {/* Objetivos */}
+                  <div className="form-field-group col-span-2">
+                    <label className="field-label">Objetivos Nutricionais</label>
+                    <div className="chips-cloud-wrapper">
+                      {OBJETIVOS_OPCOES.map((obj) => {
+                        const isSelected = objetivos.includes(obj);
+                        return (
+                          <button
+                            key={obj}
+                            type="button"
+                            className={`selection-chip ${isSelected ? 'selected' : ''}`}
+                            onClick={() => {
+                              setIsDirty(true);
+                              if (isSelected) {
+                                setObjetivos(objetivos.filter((o) => o !== obj));
+                              } else {
+                                setObjetivos([...objetivos, obj]);
+                              }
+                            }}
+                          >
+                            {isSelected && <CheckCircle2 size={14} />}
+                            <span>{obj}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="field-sub-input" style={{ marginTop: '0.75rem' }}>
+                      <input
+                        type="text"
+                        className="field-input"
+                        placeholder="Outro objetivo ou observação adicional..."
+                        value={objetivoTexto}
+                        onChange={(e) => {
+                          setObjetivoTexto(e.target.value);
+                          setIsDirty(true);
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Nível de Atividade */}
+                  <div className="form-field-group col-span-2">
+                    <label className="field-label">Nível de Atividade Física</label>
+                    <div className="activity-cards-grid">
+                      {NIVEIS_ATIVIDADE.map((lvl) => {
+                        const isSelected = nivelAtividade === lvl.id;
+                        return (
+                          <div
+                            key={lvl.id}
+                            className={`activity-select-card ${isSelected ? 'selected' : ''}`}
+                            onClick={() => {
+                              setNivelAtividade(isSelected ? '' : lvl.id);
+                              setIsDirty(true);
+                            }}
+                          >
+                            <div className="activity-card-header">
+                              <strong>{lvl.label}</strong>
+                              {isSelected && <CheckCircle2 size={16} className="check-icon" />}
+                            </div>
+                            <span className="activity-card-desc">{lvl.desc}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Patologias */}
+                  <div className="form-field-group col-span-2">
+                    <label className="field-label">Patologias ou Condições de Saúde</label>
+                    <div className="chips-cloud-wrapper">
+                      <button
+                        type="button"
+                        className={`selection-chip chip-none ${patologias.includes('Nenhum') ? 'selected-none' : ''}`}
+                        onClick={() => handleToggleMultiSelect(patologias, setPatologias, 'Nenhum')}
+                      >
+                        {patologias.includes('Nenhum') && <CheckCircle2 size={14} />}
+                        <span>Nenhum</span>
+                      </button>
+
+                      {PATOLOGIAS_OPCOES.map((pat) => {
+                        const isSelected = patologias.includes(pat);
+                        return (
+                          <button
+                            key={pat}
+                            type="button"
+                            className={`selection-chip ${isSelected ? 'selected' : ''}`}
+                            onClick={() => handleToggleMultiSelect(patologias, setPatologias, pat)}
+                          >
+                            {isSelected && <CheckCircle2 size={14} />}
+                            <span>{pat}</span>
+                          </button>
+                        );
+                      })}
+
+                      {patologias
+                        .filter((p) => p !== 'Nenhum' && !PATOLOGIAS_OPCOES.includes(p))
+                        .map((custom) => (
+                          <span key={custom} className="selection-chip custom-chip selected">
+                            <span>{custom}</span>
+                            <button
+                              type="button"
+                              className="chip-remove-btn"
+                              onClick={() => handleRemoveItem(custom, patologias, setPatologias)}
+                            >
+                              <X size={12} />
+                            </button>
+                          </span>
+                        ))}
+                    </div>
+
+                    <div className="add-tag-inline-form">
+                      <input
+                        type="text"
+                        className="field-input add-tag-input"
+                        placeholder="Adicionar outra patologia..."
+                        value={customPatologia}
+                        onChange={(e) => setCustomPatologia(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddCustomItem(customPatologia, setCustomPatologia, patologias, setPatologias);
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="btn-add-tag"
+                        onClick={() => handleAddCustomItem(customPatologia, setCustomPatologia, patologias, setPatologias)}
+                      >
+                        <Plus size={15} />
+                        <span>Adicionar</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Restrições Alimentares */}
+                  <div className="form-field-group col-span-2">
+                    <label className="field-label">Restrições Alimentares</label>
+                    <div className="chips-cloud-wrapper">
+                      <button
+                        type="button"
+                        className={`selection-chip chip-none ${restricoes.includes('Nenhum') ? 'selected-none' : ''}`}
+                        onClick={() => handleToggleMultiSelect(restricoes, setRestricoes, 'Nenhum')}
+                      >
+                        {restricoes.includes('Nenhum') && <CheckCircle2 size={14} />}
+                        <span>Nenhum</span>
+                      </button>
+
+                      {RESTRICOES_OPCOES.map((rest) => {
+                        const isSelected = restricoes.includes(rest);
+                        return (
+                          <button
+                            key={rest}
+                            type="button"
+                            className={`selection-chip ${isSelected ? 'selected' : ''}`}
+                            onClick={() => handleToggleMultiSelect(restricoes, setRestricoes, rest)}
+                          >
+                            {isSelected && <CheckCircle2 size={14} />}
+                            <span>{rest}</span>
+                          </button>
+                        );
+                      })}
+
+                      {restricoes
+                        .filter((r) => r !== 'Nenhum' && !RESTRICOES_OPCOES.includes(r))
+                        .map((custom) => (
+                          <span key={custom} className="selection-chip custom-chip selected">
+                            <span>{custom}</span>
+                            <button
+                              type="button"
+                              className="chip-remove-btn"
+                              onClick={() => handleRemoveItem(custom, restricoes, setRestricoes)}
+                            >
+                              <X size={12} />
+                            </button>
+                          </span>
+                        ))}
+                    </div>
+
+                    <div className="add-tag-inline-form">
+                      <input
+                        type="text"
+                        className="field-input add-tag-input"
+                        placeholder="Adicionar outra restrição alimentar..."
+                        value={customRestricao}
+                        onChange={(e) => setCustomRestricao(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddCustomItem(customRestricao, setCustomRestricao, restricoes, setRestricoes);
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="btn-add-tag"
+                        onClick={() => handleAddCustomItem(customRestricao, setCustomRestricao, restricoes, setRestricoes)}
+                      >
+                        <Plus size={15} />
+                        <span>Adicionar</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Alergias */}
+                  <div className="form-field-group col-span-2">
+                    <label className="field-label">Alergias Alimentares</label>
+                    <div className="chips-cloud-wrapper">
+                      <button
+                        type="button"
+                        className={`selection-chip chip-none ${alergias.includes('Nenhum') ? 'selected-none' : ''}`}
+                        onClick={() => handleToggleMultiSelect(alergias, setAlergias, 'Nenhum')}
+                      >
+                        {alergias.includes('Nenhum') && <CheckCircle2 size={14} />}
+                        <span>Nenhum</span>
+                      </button>
+
+                      {ALERGIAS_OPCOES.map((alerg) => {
+                        const isSelected = alergias.includes(alerg);
+                        return (
+                          <button
+                            key={alerg}
+                            type="button"
+                            className={`selection-chip ${isSelected ? 'selected' : ''}`}
+                            onClick={() => handleToggleMultiSelect(alergias, setAlergias, alerg)}
+                          >
+                            {isSelected && <CheckCircle2 size={14} />}
+                            <span>{alerg}</span>
+                          </button>
+                        );
+                      })}
+
+                      {alergias
+                        .filter((a) => a !== 'Nenhum' && !ALERGIAS_OPCOES.includes(a))
+                        .map((custom) => (
+                          <span key={custom} className="selection-chip custom-chip selected">
+                            <span>{custom}</span>
+                            <button
+                              type="button"
+                              className="chip-remove-btn"
+                              onClick={() => handleRemoveItem(custom, alergias, setAlergias)}
+                            >
+                              <X size={12} />
+                            </button>
+                          </span>
+                        ))}
+                    </div>
+
+                    <div className="add-tag-inline-form">
+                      <input
+                        type="text"
+                        className="field-input add-tag-input"
+                        placeholder="Adicionar outra alergia..."
+                        value={customAlergia}
+                        onChange={(e) => setCustomAlergia(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddCustomItem(customAlergia, setCustomAlergia, alergias, setAlergias);
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="btn-add-tag"
+                        onClick={() => handleAddCustomItem(customAlergia, setCustomAlergia, alergias, setAlergias)}
+                      >
+                        <Plus size={15} />
+                        <span>Adicionar</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Medicamentos */}
+                  <div className="form-field-group">
+                    <label className="field-label" htmlFor="edit-med">
+                      Medicamentos Contínuos
+                    </label>
+                    <div className="field-input-wrapper">
+                      <textarea
+                        id="edit-med"
+                        rows={3}
+                        className="field-textarea"
+                        placeholder="Descreva medicamentos, dosagens e horários..."
+                        value={medicamentos}
+                        onChange={(e) => {
+                          setMedicamentos(e.target.value);
+                          setIsDirty(true);
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Suplementos */}
+                  <div className="form-field-group">
+                    <label className="field-label" htmlFor="edit-sup">
+                      Suplementos em Uso
+                    </label>
+                    <div className="field-input-wrapper">
+                      <textarea
+                        id="edit-sup"
+                        rows={3}
+                        className="field-textarea"
+                        placeholder="Ex: Whey, Creatina, Vitaminas..."
+                        value={suplementos}
+                        onChange={(e) => {
+                          setSuplementos(e.target.value);
+                          setIsDirty(true);
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SUB-ABA 3: HÁBITOS */}
+            {dadosSubTab === 'habitos' && (
+              <div className="tab-content-panel fade-in">
+                <div className="tab-panel-header">
+                  <div className="panel-title-group">
+                    <Coffee size={20} className="panel-icon icon-amber" />
+                    <div>
+                      <h3 className="panel-heading">Hábitos e Rotina</h3>
+                      <p className="panel-subheading">Refeições, ingestão hídrica, horários de sono e atividade física</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="form-grid-layout">
+                  <div className="form-field-group">
+                    <label className="field-label" htmlFor="edit-ref">
+                      Refeições por dia
+                    </label>
+                    <div className="field-input-wrapper">
+                      <input
+                        id="edit-ref"
+                        type="number"
+                        min="1"
+                        max="12"
+                        className="field-input"
+                        value={refeicoesPorDia}
+                        onChange={(e) => {
+                          setRefeicoesPorDia(e.target.value);
+                          setIsDirty(true);
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Quantidade de Água com Cálculo Recomendado */}
+                  <div className="form-field-group col-span-2">
+                    <div className="field-label-row">
+                      <label className="field-label" htmlFor="edit-agua">
+                        Quantidade de água por dia
+                      </label>
+                      {calculatedWater && (
+                        <span className="field-calc-badge-water">
+                          <Droplets size={12} /> Meta recomendada: <strong>{atividadeFisica ? calculatedWater.formattedActive : calculatedWater.formatted}</strong> ({calculatedWater.rateMl} ml/kg)
+                        </span>
+                      )}
+                    </div>
+                    <div className="water-input-action-row">
+                      <div className="field-input-wrapper suffix-wrapper flex-1">
+                        <Droplets size={16} className="input-prefix-icon icon-cyan" />
+                        <input
+                          id="edit-agua"
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          max="15"
+                          className="field-input with-icon with-suffix"
+                          value={litrosAgua}
+                          onChange={(e) => {
+                            setLitrosAgua(e.target.value);
+                            setIsDirty(true);
+                          }}
+                        />
+                        <span className="input-suffix-tag">litros</span>
+                      </div>
+                      {calculatedWater && (
+                        <button
+                          type="button"
+                          className="btn-apply-water-auto"
+                          onClick={() => {
+                            setLitrosAgua(String(atividadeFisica ? calculatedWater.activeLiters : calculatedWater.baseLiters));
+                            setIsDirty(true);
+                          }}
+                          title="Aplicar cálculo automático de água recomendado"
+                        >
+                          <Sparkles size={14} />
+                          <span>Usar Meta ({atividadeFisica ? calculatedWater.formattedActive : calculatedWater.formatted})</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Card Explicativo de Consumo de Água */}
+                    {calculatedWater && (
+                      <div className="water-calc-info-card fade-in">
+                        <div className="water-calc-info-left">
+                          <div className="water-calc-icon-box">
+                            <Droplets size={20} />
+                          </div>
+                          <div>
+                            <div className="water-calc-title-row">
+                              <strong className="water-calc-highlight">{calculatedWater.formatted} / dia</strong>
+                              <span className="water-calc-ml-sub">({calculatedWater.formattedMl})</span>
+                            </div>
+                            <span className="water-calc-explanation">
+                              Base: {pesoAtual || paciente.peso_inicial} kg × {calculatedWater.rateMl} ml/kg ({calculatedWater.faixaDesc})
+                            </span>
+                          </div>
+                        </div>
+                        {atividadeFisica && (
+                          <div className="water-calc-active-badge">
+                            <span>+500 ml pelo treino: <strong>{calculatedWater.formattedActive}</strong></span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="form-field-group">
+                    <div className="field-label-row">
+                      <label className="field-label" htmlFor="edit-acorda">
+                        Horário que acorda
+                      </label>
+                      <span className="field-hint-chip">Ex: 6 → 06:00, 630 → 06:30</span>
+                    </div>
+                    <div className="field-input-wrapper">
+                      <Clock size={16} className="input-prefix-icon" />
+                      <input
+                        id="edit-acorda"
+                        type="text"
+                        className="field-input with-icon"
+                        value={horarioAcorda}
+                        onChange={(e) => {
+                          setHorarioAcorda(e.target.value);
+                          setIsDirty(true);
+                        }}
+                        onBlur={(e) => setHorarioAcorda(formatSmartTime(e.target.value))}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-field-group">
+                    <div className="field-label-row">
+                      <label className="field-label" htmlFor="edit-dorme">
+                        Horário que dorme
+                      </label>
+                      <span className="field-hint-chip">Ex: 23 → 23:00, 2230 → 22:30</span>
+                    </div>
+                    <div className="field-input-wrapper">
+                      <Clock size={16} className="input-prefix-icon" />
+                      <input
+                        id="edit-dorme"
+                        type="text"
+                        className="field-input with-icon"
+                        value={horarioDorme}
+                        onChange={(e) => {
+                          setHorarioDorme(e.target.value);
+                          setIsDirty(true);
+                        }}
+                        onBlur={(e) => setHorarioDorme(formatSmartTime(e.target.value))}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-field-group col-span-2">
+                    <label className="field-label">Pratica atividade física regularmente?</label>
+                    <div className="toggle-selection-row">
+                      <button
+                        type="button"
+                        className={`toggle-option-btn ${!atividadeFisica ? 'active' : ''}`}
+                        onClick={() => {
+                          setAtividadeFisica(false);
+                          setIsDirty(true);
+                        }}
+                      >
+                        Não
+                      </button>
+                      <button
+                        type="button"
+                        className={`toggle-option-btn ${atividadeFisica ? 'active' : ''}`}
+                        onClick={() => {
+                          setAtividadeFisica(true);
+                          setIsDirty(true);
+                        }}
+                      >
+                        Sim
+                      </button>
+                    </div>
+
+                    {atividadeFisica && (
+                      <div className="conditional-expand-box fade-in">
+                        <label className="field-sublabel" htmlFor="edit-ativ-desc">
+                          Qual atividade física e frequência semanal?
+                        </label>
+                        <input
+                          id="edit-ativ-desc"
+                          type="text"
+                          className="field-input"
+                          placeholder="Ex: Treino funcional 3x na semana e corrida aos domingos"
+                          value={atividadeDescricao}
+                          onChange={(e) => {
+                            setAtividadeDescricao(e.target.value);
+                            setIsDirty(true);
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="form-field-group col-span-2">
+                    <label className="field-label" htmlFor="edit-obs">
+                      Observações Gerais
+                    </label>
+                    <div className="field-input-wrapper">
+                      <textarea
+                        id="edit-obs"
+                        rows={3}
+                        className="field-textarea"
+                        placeholder="Anotações adicionais, histórico familiar ou particularidades do paciente..."
+                        value={observacoes}
+                        onChange={(e) => {
+                          setObservacoes(e.target.value);
+                          setIsDirty(true);
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Rodapé de Ação com Botão Salvar Alterações */}
+            <div className="tab-panel-footer">
+              <button
+                type="button"
+                className="btn-secondary-action"
+                onClick={() => populateForm(paciente)}
+                disabled={!isDirty || savingDados}
+              >
+                <RotateCcw size={15} />
+                <span>Descartar Alterações</span>
+              </button>
+
+              <button
+                type="submit"
+                className="btn-primary-action"
+                disabled={savingDados}
+              >
+                {savingDados ? (
+                  <>
+                    <div className="btn-spinner" />
+                    <span>Salvando alterações...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save size={16} />
+                    <span>Salvar alterações</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* =======================================================================
+          SEÇÃO 2 — CONSULTAS (PROMPT 5)
+          - Gráfico de evolução de peso sempre visível no topo
+          - Lista de consultas em ordem decrescente
+          - Botão "+ Nova Consulta" com Modal
+          ======================================================================= */}
+      {activeSection === 'consultas' && (
+        <div className="perfil-section-content fade-in">
+          {/* Gráfico de Evolução de Peso (Sempre Visível) */}
+          <div className="consultas-chart-container">
+            <div className="chart-header-row">
+              <div className="chart-title-group">
+                <TrendingUp size={20} className="icon-emerald" />
+                <div>
+                  <h3 className="chart-main-title">Evolução do Peso Corporal</h3>
+                  <p className="chart-sub-title">Acompanhamento do peso registrado em cada atendimento ao longo do tempo</p>
+                </div>
+              </div>
+
+              {/* Botão de Nova Consulta */}
+              <button
+                type="button"
+                className="btn-primary-action btn-nova-consulta-header"
+                onClick={handleOpenNovaConsulta}
+              >
+                <Plus size={16} />
+                <span>Nova Consulta</span>
+              </button>
+            </div>
+
+            {/* Renderização do Gráfico ou Estado Vazio */}
+            {chartData.length > 0 ? (
+              <div className="weight-evolution-chart-box">
+                {/* Métricas Resumidas da Curva */}
+                <div className="chart-stats-summary-bar">
+                  <div className="chart-stat-item">
+                    <span className="cs-label">Peso Inicial</span>
+                    <strong className="cs-val">{pesoStats.pesoInicial} kg</strong>
+                  </div>
+                  <div className="chart-stat-item">
+                    <span className="cs-label">Peso Atual</span>
+                    <strong className="cs-val">{pesoStats.pesoAtual} kg</strong>
+                  </div>
+                  <div className="chart-stat-item">
+                    <span className="cs-label">Variação Total</span>
+                    <span className={`cs-delta ${pesoStats.deltaTotal <= 0 ? 'delta-neg' : 'delta-pos'}`}>
+                      {pesoStats.deltaTotal <= 0 ? <TrendingDown size={14} /> : <TrendingUp size={14} />}
+                      {pesoStats.deltaTotal > 0 ? `+${pesoStats.deltaTotal}` : pesoStats.deltaTotal} kg
+                    </span>
+                  </div>
+                  <div className="chart-stat-item">
+                    <span className="cs-label">Total de Atendimentos</span>
+                    <strong className="cs-val">{chartData.length}</strong>
+                  </div>
+                </div>
+
+                {/* SVG Visual do Gráfico de Evolução */}
+                <div className="chart-svg-wrapper">
+                  <svg viewBox="0 0 700 240" className="weight-svg-chart" preserveAspectRatio="none">
+                    <defs>
+                      <linearGradient id="weightAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#10b981" stopOpacity="0.3" />
+                        <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
+                      </linearGradient>
+                    </defs>
+
+                    {/* Linhas de Grade Horizontal */}
+                    <line x1="40" y1="40" x2="660" y2="40" stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
+                    <line x1="40" y1="95" x2="660" y2="95" stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
+                    <line x1="40" y1="150" x2="660" y2="150" stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
+                    <line x1="40" y1="200" x2="660" y2="200" stroke="rgba(255,255,255,0.12)" />
+
+                    {/* Cálculo dos Pontos da Linha */}
+                    {(() => {
+                      const paddingX = 60;
+                      const widthAvailable = 700 - paddingX * 2;
+                      const minY = Math.max(0, pesoStats.minPeso - 5);
+                      const maxY = pesoStats.maxPeso + 5;
+                      const rangeY = maxY - minY || 1;
+
+                      const points = chartData.map((pt, i) => {
+                        const x = chartData.length === 1
+                          ? 350
+                          : paddingX + (i / (chartData.length - 1)) * widthAvailable;
+                        const y = 200 - ((pt.peso - minY) / rangeY) * 150;
+                        return { ...pt, x, y };
+                      });
+
+                      const pathD = points.length === 1
+                        ? `M ${points[0].x - 40} ${points[0].y} L ${points[0].x + 40} ${points[0].y}`
+                        : points.reduce((acc, curr, i) => (i === 0 ? `M ${curr.x} ${curr.y}` : `${acc} L ${curr.x} ${curr.y}`), '');
+
+                      const areaD = points.length > 1
+                        ? `${pathD} L ${points[points.length - 1].x} 200 L ${points[0].x} 200 Z`
+                        : '';
+
+                      return (
+                        <>
+                          {areaD && <path d={areaD} fill="url(#weightAreaGrad)" />}
+                          <path
+                            d={pathD}
+                            fill="none"
+                            stroke="#34d399"
+                            strokeWidth="3"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                          {points.map((pt) => (
+                            <g key={pt.id} className="chart-node-group">
+                              <circle
+                                cx={pt.x}
+                                cy={pt.y}
+                                r="5.5"
+                                fill="#09090b"
+                                stroke="#34d399"
+                                strokeWidth="2.5"
+                              />
+                              <text
+                                x={pt.x}
+                                y={pt.y - 12}
+                                textAnchor="middle"
+                                fill="#ffffff"
+                                fontSize="12"
+                                fontWeight="700"
+                              >
+                                {pt.peso} kg
+                              </text>
+                              <text
+                                x={pt.x}
+                                y="222"
+                                textAnchor="middle"
+                                fill="#a1a1aa"
+                                fontSize="11"
+                                fontWeight="500"
+                              >
+                                {pt.dateLabel}
+                              </text>
+                            </g>
+                          ))}
+                        </>
+                      );
+                    })()}
+                  </svg>
+                </div>
+              </div>
+            ) : (
+              /* Gráfico Vazio com Mensagem do Prompt 5 */
+              <div className="chart-empty-state-box">
+                <div className="empty-chart-illustration">
+                  <TrendingUp size={36} className="icon-muted" />
+                  <div className="empty-pulse-line" />
+                </div>
+                <h4 className="empty-chart-msg">Nenhuma consulta registrada ainda</h4>
+                <p className="empty-chart-sub">
+                  Registre o primeiro atendimento do paciente para acompanhar o gráfico de evolução de peso e medidas corporais.
+                </p>
+                <button
+                  type="button"
+                  className="btn-primary-action"
+                  onClick={handleOpenNovaConsulta}
+                >
+                  <Plus size={16} />
+                  <span>Registrar Primeira Consulta</span>
+                </button>
               </div>
             )}
           </div>
-        )}
-      </div>
 
-      {/* Modal de Confirmação de Exclusão */}
-      {showDeleteModal && (
-        <div className="modal-backdrop" onClick={() => setShowDeleteModal(false)}>
-          <div className="modal-container delete-confirm-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-header-title">
-                <div className="modal-icon-badge alert-badge">
-                  <Trash2 size={20} />
-                </div>
+          {/* Lista de Consultas em Ordem Cronológica Decrescente */}
+          <div className="consultas-history-card">
+            <div className="history-header-row">
+              <div className="history-title-wrap">
+                <CalendarCheck size={20} className="icon-blue" />
                 <div>
-                  <h3>Excluir Paciente</h3>
-                  <p className="modal-subtitle">Ação irreversível</p>
+                  <h3 className="history-main-heading">Histórico de Atendimentos</h3>
+                  <p className="history-sub-heading">Registro cronológico detalhado das consultas realizadas</p>
                 </div>
+              </div>
+
+              <span className="history-count-tag">{consultas.length} consulta(s)</span>
+            </div>
+
+            {consultas.length > 0 ? (
+              <div className="consultas-timeline-list">
+                {consultas.map((consulta, idx) => {
+                  const pesoNum = parseFloat(consulta.peso) || 0;
+                  const prevConsulta = idx < consultas.length - 1 ? consultas[idx + 1] : null;
+                  const prevPeso = prevConsulta ? parseFloat(prevConsulta.peso) : null;
+                  const delta = prevPeso !== null ? parseFloat((pesoNum - prevPeso).toFixed(1)) : null;
+
+                  return (
+                    <div key={consulta.id} className="consulta-timeline-item fade-in">
+                      <div className="consulta-timeline-indicator">
+                        <div className="timeline-node-dot" />
+                        {idx < consultas.length - 1 && <div className="timeline-node-line" />}
+                      </div>
+
+                      <div className="consulta-card-body">
+                        <div className="consulta-card-top-row">
+                          <div className="consulta-date-box">
+                            <Calendar size={16} className="icon-cyan" />
+                            <strong className="consulta-date-text">{formatDate(consulta.data_consulta)}</strong>
+                            {idx === 0 && <span className="latest-badge">Última Consulta</span>}
+                          </div>
+
+                          <button
+                            type="button"
+                            className="btn-delete-consulta-mini"
+                            onClick={() => setConsultaToDelete(consulta)}
+                            title="Remover esta consulta"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+
+                        <div className="consulta-metrics-grid">
+                          {/* Peso */}
+                          <div className="consulta-metric-tile">
+                            <span className="cm-tile-label">Peso Registrado</span>
+                            <div className="cm-tile-val-row">
+                              <strong className="cm-tile-value">{pesoNum} kg</strong>
+                              {delta !== null && (
+                                <span className={`cm-delta-chip ${delta <= 0 ? 'delta-good' : 'delta-warn'}`}>
+                                  {delta > 0 ? `+${delta}` : delta} kg
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Cintura */}
+                          {consulta.cintura && (
+                            <div className="consulta-metric-tile">
+                              <span className="cm-tile-label">Cintura</span>
+                              <strong className="cm-tile-value">{consulta.cintura} cm</strong>
+                            </div>
+                          )}
+
+                          {/* Quadril */}
+                          {consulta.quadril && (
+                            <div className="consulta-metric-tile">
+                              <span className="cm-tile-label">Quadril</span>
+                              <strong className="cm-tile-value">{consulta.quadril} cm</strong>
+                            </div>
+                          )}
+
+                          {/* % Gordura */}
+                          {consulta.percentual_gordura && (
+                            <div className="consulta-metric-tile">
+                              <span className="cm-tile-label">% de Gordura</span>
+                              <strong className="cm-tile-value">{consulta.percentual_gordura}%</strong>
+                            </div>
+                          )}
+
+                          {/* Próximo Retorno */}
+                          {consulta.proximo_retorno && (
+                            <div className="consulta-metric-tile tile-retorno">
+                              <span className="cm-tile-label">Próximo Retorno</span>
+                              <div className="cm-retorno-row">
+                                <Clock size={14} />
+                                <strong className="cm-tile-value">{formatDate(consulta.proximo_retorno)}</strong>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Observações */}
+                        {consulta.observacoes && (
+                          <div className="consulta-obs-box">
+                            <span className="obs-title">Observações do Atendimento:</span>
+                            <p className="obs-content">{consulta.observacoes}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="empty-history-placeholder">
+                <Calendar size={32} className="icon-muted" />
+                <p>Nenhuma consulta registrada para este paciente.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* =======================================================================
+          SEÇÃO 3 — PLANOS ALIMENTARES (PROMPT 5)
+          - Botão "Gerar Plano Alimentar" bem visível
+          - Histórico de todos os planos salvos em ordem cronológica decrescente
+          - Visualização do conteúdo completo do plano
+          ======================================================================= */}
+      {activeSection === 'planos' && (
+        <div className="perfil-section-content fade-in">
+          <div className="planos-section-card">
+            <div className="planos-section-header">
+              <div className="planos-title-group">
+                <Utensils size={20} className="icon-amber" />
+                <div>
+                  <h3 className="planos-main-title">Planos Alimentares Personalizados</h3>
+                  <p className="planos-sub-title">Prescrições dietéticas e diretrizes nutricionais elaboradas para o paciente</p>
+                </div>
+              </div>
+
+              {/* Botão "Gerar Plano Alimentar" em Destaque */}
+              <button
+                type="button"
+                className="btn-gerar-plano-primary"
+                onClick={() => setShowGerarPlanoModal(true)}
+              >
+                <Sparkles size={17} />
+                <span>Gerar Plano Alimentar</span>
+              </button>
+            </div>
+
+            {/* Histórico de Planos Alimentares */}
+            {planos.length > 0 ? (
+              <div className="planos-history-grid">
+                {planos.map((plano, index) => {
+                  const conteudo = typeof plano.conteudo === 'string' ? JSON.parse(plano.conteudo) : plano.conteudo;
+                  const dataCriacao = formatDate(plano.created_at);
+
+                  return (
+                    <div key={plano.id || index} className="plano-history-card fade-in">
+                      <div className="plano-card-header">
+                        <div className="plano-tag-badge">
+                          <FileText size={14} />
+                          <span>Plano Alimentar #{planos.length - index}</span>
+                        </div>
+                        <span className="plano-date-stamp">{dataCriacao}</span>
+                      </div>
+
+                      <div className="plano-card-preview">
+                        <h4 className="plano-name-heading">
+                          {conteudo.titulo || conteudo.nome || `Prescrição Nutricional — ${paciente.nome}`}
+                        </h4>
+                        <p className="plano-summary-snippet">
+                          {conteudo.descricao || conteudo.resumo || (conteudo.refeicoes ? `${conteudo.refeicoes.length} refeições planejadas` : 'Plano alimentar personalizado com orientações e distribuição de macronutrientes.')}
+                        </p>
+                      </div>
+
+                      <div className="plano-card-footer">
+                        <button
+                          type="button"
+                          className="btn-view-plano-full"
+                          onClick={() => setSelectedPlano(plano)}
+                        >
+                          <Eye size={15} />
+                          <span>Ver Plano Completo</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              /* Mensagem Exata do Prompt 5 quando não houver planos salvos */
+              <div className="planos-empty-state-box">
+                <div className="empty-plano-icon-circle">
+                  <Utensils size={36} className="icon-amber" />
+                </div>
+                <h4 className="empty-planos-msg">Nenhum plano alimentar gerado ainda</h4>
+                <p className="empty-planos-sub">
+                  Utilize o assistente de planejamento para prescrever a dieta com cálculo calórico e distribuição de refeições.
+                </p>
+                <button
+                  type="button"
+                  className="btn-gerar-plano-primary btn-lg"
+                  onClick={() => setShowGerarPlanoModal(true)}
+                >
+                  <Sparkles size={18} />
+                  <span>Gerar Plano Alimentar</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* =======================================================================
+          MODAL: + NOVA CONSULTA (PROMPT 5)
+          ======================================================================= */}
+      {showNovaConsultaModal && (
+        <div className="modal-backdrop fade-in" onClick={() => setShowNovaConsultaModal(false)}>
+          <div className="modal-dialog-card modal-lg" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-dialog-header">
+              <div className="modal-header-icon bg-blue">
+                <CalendarCheck size={20} />
+              </div>
+              <div className="modal-header-text">
+                <h3>Nova Consulta</h3>
+                <p>Registro de atendimento clínico para <strong>{paciente.nome}</strong></p>
               </div>
               <button
                 type="button"
                 className="modal-close-btn"
-                onClick={() => setShowDeleteModal(false)}
+                onClick={() => setShowNovaConsultaModal(false)}
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
 
-            <div className="modal-body">
-              <p className="delete-modal-text">
-                Tem certeza de que deseja remover permanentemente o(a) paciente{' '}
-                <strong>{paciente.nome}</strong> e todos os seus históricos de consultas e planos
-                alimentares?
+            {consultaError && (
+              <div className="form-alert-banner alert-error" style={{ margin: '1rem 1.5rem 0' }}>
+                <AlertCircle size={16} />
+                <span>{consultaError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveNovaConsulta}>
+              <div className="modal-dialog-body">
+                <div className="form-grid-layout">
+                  {/* Data da Consulta (Preenchida com hoje, editável) */}
+                  <div className="form-field-group">
+                    <label className="field-label required" htmlFor="modal-data-consulta">
+                      Data da Consulta
+                    </label>
+                    <div className="field-input-wrapper">
+                      <Calendar size={16} className="input-prefix-icon" />
+                      <input
+                        id="modal-data-consulta"
+                        type="date"
+                        className="field-input with-icon"
+                        value={novaConsultaData.data_consulta}
+                        onChange={(e) => setNovaConsultaData({ ...novaConsultaData, data_consulta: e.target.value })}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Peso Atual (Obrigatório) */}
+                  <div className="form-field-group">
+                    <label className="field-label required" htmlFor="modal-peso">
+                      Peso Atual (kg)
+                    </label>
+                    <div className="field-input-wrapper suffix-wrapper">
+                      <Weight size={16} className="input-prefix-icon" />
+                      <input
+                        id="modal-peso"
+                        type="number"
+                        step="0.1"
+                        min="1"
+                        max="500"
+                        className="field-input with-icon with-suffix"
+                        placeholder="Ex: 73.2"
+                        value={novaConsultaData.peso}
+                        onChange={(e) => setNovaConsultaData({ ...novaConsultaData, peso: e.target.value })}
+                        required
+                        autoFocus
+                      />
+                      <span className="input-suffix-tag">kg</span>
+                    </div>
+                  </div>
+
+                  {/* Cintura (Opcional) */}
+                  <div className="form-field-group">
+                    <label className="field-label" htmlFor="modal-cintura">
+                      Cintura em cm (opcional)
+                    </label>
+                    <div className="field-input-wrapper suffix-wrapper">
+                      <Ruler size={16} className="input-prefix-icon" />
+                      <input
+                        id="modal-cintura"
+                        type="number"
+                        step="0.5"
+                        min="20"
+                        max="250"
+                        className="field-input with-icon with-suffix"
+                        placeholder="Ex: 82"
+                        value={novaConsultaData.cintura}
+                        onChange={(e) => setNovaConsultaData({ ...novaConsultaData, cintura: e.target.value })}
+                      />
+                      <span className="input-suffix-tag">cm</span>
+                    </div>
+                  </div>
+
+                  {/* Quadril (Opcional) */}
+                  <div className="form-field-group">
+                    <label className="field-label" htmlFor="modal-quadril">
+                      Quadril em cm (opcional)
+                    </label>
+                    <div className="field-input-wrapper suffix-wrapper">
+                      <Ruler size={16} className="input-prefix-icon" />
+                      <input
+                        id="modal-quadril"
+                        type="number"
+                        step="0.5"
+                        min="20"
+                        max="250"
+                        className="field-input with-icon with-suffix"
+                        placeholder="Ex: 98"
+                        value={novaConsultaData.quadril}
+                        onChange={(e) => setNovaConsultaData({ ...novaConsultaData, quadril: e.target.value })}
+                      />
+                      <span className="input-suffix-tag">cm</span>
+                    </div>
+                  </div>
+
+                  {/* % de Gordura (Opcional) */}
+                  <div className="form-field-group">
+                    <label className="field-label" htmlFor="modal-gordura">
+                      % de Gordura Corporal (opcional)
+                    </label>
+                    <div className="field-input-wrapper suffix-wrapper">
+                      <Percent size={16} className="input-prefix-icon" />
+                      <input
+                        id="modal-gordura"
+                        type="number"
+                        step="0.1"
+                        min="1"
+                        max="80"
+                        className="field-input with-icon with-suffix"
+                        placeholder="Ex: 19.5"
+                        value={novaConsultaData.percentual_gordura}
+                        onChange={(e) => setNovaConsultaData({ ...novaConsultaData, percentual_gordura: e.target.value })}
+                      />
+                      <span className="input-suffix-tag">%</span>
+                    </div>
+                  </div>
+
+                  {/* Próximo Retorno */}
+                  <div className="form-field-group">
+                    <label className="field-label" htmlFor="modal-retorno">
+                      Próximo Retorno (opcional)
+                    </label>
+                    <div className="field-input-wrapper">
+                      <Calendar size={16} className="input-prefix-icon" />
+                      <input
+                        id="modal-retorno"
+                        type="date"
+                        className="field-input with-icon"
+                        value={novaConsultaData.proximo_retorno}
+                        onChange={(e) => setNovaConsultaData({ ...novaConsultaData, proximo_retorno: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Observações */}
+                  <div className="form-field-group col-span-2">
+                    <label className="field-label" htmlFor="modal-obs">
+                      Observações Clínicas / Condutas da Consulta
+                    </label>
+                    <div className="field-input-wrapper">
+                      <textarea
+                        id="modal-obs"
+                        rows={3}
+                        className="field-textarea"
+                        placeholder="Descreva sintomas relatados, adesão ao plano, novas metas ou alterações..."
+                        value={novaConsultaData.observacoes}
+                        onChange={(e) => setNovaConsultaData({ ...novaConsultaData, observacoes: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="modal-dialog-footer">
+                <button
+                  type="button"
+                  className="btn-secondary-action"
+                  onClick={() => setShowNovaConsultaModal(false)}
+                  disabled={savingConsulta}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary-action"
+                  disabled={savingConsulta}
+                >
+                  {savingConsulta ? (
+                    <>
+                      <div className="btn-spinner" />
+                      <span>Salvando consulta...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save size={16} />
+                      <span>Salvar Consulta</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* =======================================================================
+          MODAL: EXCLUSÃO DE CONSULTA
+          ======================================================================= */}
+      {consultaToDelete && (
+        <div className="modal-backdrop fade-in" onClick={() => setConsultaToDelete(null)}>
+          <div className="modal-dialog-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-dialog-header">
+              <div className="modal-header-icon bg-red">
+                <Trash2 size={20} />
+              </div>
+              <div className="modal-header-text">
+                <h3>Remover Consulta</h3>
+                <p>Tem certeza que deseja remover a consulta de <strong>{formatDate(consultaToDelete.data_consulta)}</strong> ({consultaToDelete.peso} kg)?</p>
+              </div>
+            </div>
+            <div className="modal-dialog-footer">
+              <button
+                type="button"
+                className="btn-secondary-action"
+                onClick={() => setConsultaToDelete(null)}
+                disabled={deletingConsulta}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn-danger-action"
+                onClick={handleDeleteConsultaConfirm}
+                disabled={deletingConsulta}
+              >
+                {deletingConsulta ? 'Removendo...' : 'Sim, Excluir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =======================================================================
+          MODAL: AVISO GERAR PLANO ALIMENTAR (PRÓXIMO PROMPT)
+          ======================================================================= */}
+      {showGerarPlanoModal && (
+        <div className="modal-backdrop fade-in" onClick={() => setShowGerarPlanoModal(false)}>
+          <div className="modal-dialog-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-dialog-header">
+              <div className="modal-header-icon bg-amber">
+                <Sparkles size={20} />
+              </div>
+              <div className="modal-header-text">
+                <h3>Gerador de Plano Alimentar</h3>
+                <p>Módulo de Inteligência Artificial para elaboração do plano</p>
+              </div>
+              <button type="button" className="modal-close-btn" onClick={() => setShowGerarPlanoModal(false)}>
+                <X size={18} />
+              </button>
+            </div>
+            <div className="modal-dialog-body" style={{ padding: '1.25rem 1.5rem', color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6' }}>
+              <p>
+                O motor gerador de dietas personalizadas com Inteligência Artificial será conectado na próxima etapa (Prompt 6).
+              </p>
+              <p style={{ marginTop: '0.75rem' }}>
+                Todos os dados clínicos de <strong>{paciente.nome}</strong> (peso, altura, objetivos, restrições e histórico de consultas) serão utilizados automaticamente como base para a formulação do cardápio!
               </p>
             </div>
+            <div className="modal-dialog-footer">
+              <button
+                type="button"
+                className="btn-primary-action"
+                onClick={() => setShowGerarPlanoModal(false)}
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-            <div className="modal-footer">
+      {/* =======================================================================
+          MODAL: VISUALIZADOR DE PLANO ALIMENTAR COMPLETO
+          ======================================================================= */}
+      {selectedPlano && (
+        <div className="modal-backdrop fade-in" onClick={() => setSelectedPlano(null)}>
+          <div className="modal-dialog-card modal-lg" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-dialog-header">
+              <div className="modal-header-icon bg-amber">
+                <Utensils size={20} />
+              </div>
+              <div className="modal-header-text">
+                <h3>Plano Alimentar de {paciente.nome}</h3>
+                <p>Prescrito em {formatDate(selectedPlano.created_at)}</p>
+              </div>
+              <button type="button" className="modal-close-btn" onClick={() => setSelectedPlano(null)}>
+                <X size={18} />
+              </button>
+            </div>
+            <div className="modal-dialog-body" style={{ padding: '1.5rem' }}>
+              <pre className="plano-json-view">
+                {JSON.stringify(typeof selectedPlano.conteudo === 'string' ? JSON.parse(selectedPlano.conteudo) : selectedPlano.conteudo, null, 2)}
+              </pre>
+            </div>
+            <div className="modal-dialog-footer">
+              <button
+                type="button"
+                className="btn-secondary-action"
+                onClick={() => setSelectedPlano(null)}
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =======================================================================
+          MODAL: CONFIRMAÇÃO DE EXCLUSÃO DE PACIENTE
+          ======================================================================= */}
+      {showDeleteModal && (
+        <div className="modal-backdrop fade-in" onClick={() => setShowDeleteModal(false)}>
+          <div className="modal-dialog-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-dialog-header">
+              <div className="modal-header-icon bg-red">
+                <Trash2 size={20} />
+              </div>
+              <div className="modal-header-text">
+                <h3>Excluir Paciente</h3>
+                <p>Esta ação é irreversível e excluirá todo o histórico clínico.</p>
+              </div>
+            </div>
+            <div className="modal-dialog-body" style={{ padding: '1.25rem 1.5rem', color: 'var(--text-secondary)' }}>
+              Tem certeza que deseja excluir <strong>{paciente.nome}</strong>? Todas as consultas e planos alimentares associados serão permanentemente removidos.
+            </div>
+            <div className="modal-dialog-footer">
               <button
                 type="button"
                 className="btn-secondary-action"
@@ -1569,20 +2336,10 @@ export function PacientePerfilView({
               <button
                 type="button"
                 className="btn-danger-action"
-                onClick={handleDelete}
+                onClick={handleDeletePaciente}
                 disabled={deleting}
               >
-                {deleting ? (
-                  <>
-                    <div className="spinner-sm" />
-                    <span>Excluindo...</span>
-                  </>
-                ) : (
-                  <>
-                    <Trash2 size={16} />
-                    <span>Confirmar Exclusão</span>
-                  </>
-                )}
+                {deleting ? 'Excluindo...' : 'Sim, Excluir Paciente'}
               </button>
             </div>
           </div>

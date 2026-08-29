@@ -449,4 +449,113 @@ export async function getEvolucaoPaciente(pacienteId) {
   }
 }
 
+/**
+ * Cria uma nova consulta para o paciente no Neon PostgreSQL
+ */
+export async function createConsulta(data) {
+  if (!data.paciente_id || !data.data_consulta || !data.peso) {
+    throw new Error('Paciente, Data da consulta e Peso são obrigatórios.');
+  }
+
+  const {
+    paciente_id,
+    data_consulta,
+    peso,
+    cintura = null,
+    quadril = null,
+    percentual_gordura = null,
+    observacoes = null,
+    proximo_retorno = null,
+  } = data;
+
+  try {
+    const rows = await sql`
+      INSERT INTO public.consultas (
+        paciente_id,
+        data_consulta,
+        peso,
+        cintura,
+        quadril,
+        percentual_gordura,
+        observacoes,
+        proximo_retorno
+      ) VALUES (
+        ${paciente_id},
+        ${data_consulta},
+        ${Number(peso)},
+        ${cintura ? Number(cintura) : null},
+        ${quadril ? Number(quadril) : null},
+        ${percentual_gordura ? Number(percentual_gordura) : null},
+        ${observacoes || null},
+        ${proximo_retorno || null}
+      )
+      RETURNING *
+    `;
+    return rows[0] || null;
+  } catch (error) {
+    console.error('Error creating consulta in Neon:', error);
+    throw error;
+  }
+}
+
+/**
+ * Remove uma consulta do banco de dados
+ */
+export async function deleteConsulta(consultaId) {
+  if (!consultaId) return false;
+  try {
+    await sql`DELETE FROM public.consultas WHERE id = ${consultaId}`;
+    return true;
+  } catch (error) {
+    console.error('Error deleting consulta:', error);
+    throw error;
+  }
+}
+
+/**
+ * Obtém todos os planos alimentares salvos de um paciente
+ */
+export async function getPlanosByPaciente(pacienteId) {
+  if (!pacienteId) return [];
+  try {
+    const rows = await sql`
+      SELECT id, paciente_id, conteudo, created_at
+      FROM public.planos_alimentares
+      WHERE paciente_id = ${pacienteId}
+      ORDER BY created_at DESC
+    `;
+    return rows;
+  } catch (error) {
+    console.error('Error fetching planos alimentares:', error);
+    return [];
+  }
+}
+
+/**
+ * Salva um novo plano alimentar para o paciente
+ */
+export async function createPlanoAlimentar(data) {
+  if (!data.paciente_id || !data.conteudo) {
+    throw new Error('Paciente e Conteúdo do plano alimentar são obrigatórios.');
+  }
+
+  try {
+    const rows = await sql`
+      INSERT INTO public.planos_alimentares (
+        paciente_id,
+        conteudo
+      ) VALUES (
+        ${data.paciente_id},
+        ${typeof data.conteudo === 'string' ? JSON.parse(data.conteudo) : data.conteudo}
+      )
+      RETURNING *
+    `;
+    return rows[0] || null;
+  } catch (error) {
+    console.error('Error creating plano alimentar in Neon:', error);
+    throw error;
+  }
+}
+
+
 
