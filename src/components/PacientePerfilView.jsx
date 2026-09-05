@@ -29,6 +29,8 @@ import {
 } from './PlanoAlimentarEditor';
 
 
+import { gerarPlanoAlimentarPdf } from '../services/pdfReportService';
+
 import {
   User,
   HeartPulse,
@@ -65,6 +67,7 @@ import {
   Copy,
   Printer,
   Flame,
+  Download,
 } from 'lucide-react';
 
 const OBJETIVOS_OPCOES = [
@@ -167,6 +170,7 @@ export function PacientePerfilView({
   const [savingPlano, setSavingPlano] = useState(false);
   const [planoToDelete, setPlanoToDelete] = useState(null);
   const [deletingPlano, setDeletingPlano] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
 
   // Campos de Dados do Paciente (Seção 1 - Edição Direta)
@@ -665,6 +669,34 @@ export function PacientePerfilView({
       setCopiedVisualizerText(true);
       setTimeout(() => setCopiedVisualizerText(false), 3000);
     });
+  };
+
+  // Gerar e Baixar Relatório Completo do Plano em PDF
+  const handleBaixarPdfPlano = async (planoItem) => {
+    if (!planoItem) return;
+    try {
+      setDownloadingPdf(true);
+      const pacienteCompleto = {
+        nome: nome.trim() || paciente?.nome,
+        idade: calculatedAge || paciente?.idade,
+        sexo: sexo || paciente?.sexo,
+        peso: pesoAtual ? Number(pesoAtual) : paciente?.peso_inicial,
+        altura: altura ? Number(altura) : paciente?.altura,
+        imc: calculatedIMC || paciente?.imc,
+        objetivos,
+        restricoes_alimentares: restricoes,
+        alergias,
+        litros_agua: litrosAgua ? Number(litrosAgua) : paciente?.litros_agua,
+        nivel_atividade: nivelAtividade || paciente?.nivel_atividade,
+        atividade_fisica: atividadeFisica,
+      };
+      await gerarPlanoAlimentarPdf(planoItem, pacienteCompleto);
+    } catch (err) {
+      console.error('Erro ao gerar relatório em PDF:', err);
+      alert('Não foi possível gerar o arquivo PDF. Tente novamente.');
+    } finally {
+      setDownloadingPdf(false);
+    }
   };
 
 
@@ -2790,10 +2822,21 @@ export function PacientePerfilView({
                   <button
                     type="button"
                     className="btn-editor-utility"
-                    onClick={() => window.print()}
+                    onClick={() => handleBaixarPdfPlano(selectedPlano)}
+                    disabled={downloadingPdf}
+                    title="Baixar Relatório Completo em PDF com Logo e Dados Clínicos"
                   >
-                    <Printer size={16} />
-                    <span>Imprimir</span>
+                    {downloadingPdf ? (
+                      <>
+                        <div className="btn-spinner" />
+                        <span>Gerando PDF...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Download size={16} />
+                        <span>Imprimir / Baixar PDF</span>
+                      </>
+                    )}
                   </button>
                 </div>
 

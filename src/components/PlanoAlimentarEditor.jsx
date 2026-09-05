@@ -20,7 +20,9 @@ import {
   ChevronRight,
   Edit3,
   Flame,
+  Download,
 } from 'lucide-react';
+import { gerarPlanoAlimentarPdf } from '../services/pdfReportService';
 
 export const DIAS_SEMANA = [
   'Segunda-feira',
@@ -152,6 +154,7 @@ export function PlanoAlimentarEditor({
 
   const [activeDiaIndex, setActiveDiaIndex] = useState(0);
   const [copiedNotification, setCopiedNotification] = useState(false);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
 
   const activeDiaData =
     plano.plano_semanal[activeDiaIndex] || plano.plano_semanal[0] || { dia: 'Segunda-feira', refeicoes: {} };
@@ -276,9 +279,17 @@ export function PlanoAlimentarEditor({
     });
   };
 
-  // Imprimir ou gerar PDF
-  const handlePrint = () => {
-    window.print();
+  // Gerar e Baixar Relatório do Plano em PDF
+  const handleDownloadPdf = async () => {
+    try {
+      setGeneratingPdf(true);
+      await gerarPlanoAlimentarPdf(plano, paciente);
+    } catch (err) {
+      console.error('Erro ao gerar relatório PDF:', err);
+      alert('Não foi possível gerar o arquivo PDF. Tente novamente.');
+    } finally {
+      setGeneratingPdf(false);
+    }
   };
 
   const handleFormSubmit = (e) => {
@@ -329,11 +340,21 @@ export function PlanoAlimentarEditor({
           <button
             type="button"
             className="btn-editor-utility"
-            onClick={handlePrint}
-            title="Imprimir ou Salvar em PDF"
+            onClick={handleDownloadPdf}
+            disabled={generatingPdf}
+            title="Baixar Relatório Completo em PDF com Logo e Dados Clínicos"
           >
-            <Printer size={16} />
-            <span>Imprimir</span>
+            {generatingPdf ? (
+              <>
+                <div className="btn-spinner" />
+                <span>Gerando PDF...</span>
+              </>
+            ) : (
+              <>
+                <Download size={16} />
+                <span>Imprimir / Baixar PDF</span>
+              </>
+            )}
           </button>
         </div>
       </div>
