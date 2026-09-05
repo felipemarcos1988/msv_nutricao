@@ -540,13 +540,14 @@ export async function createPlanoAlimentar(data) {
   }
 
   try {
+    const conteudoJson = typeof data.conteudo === 'string' ? JSON.parse(data.conteudo) : data.conteudo;
     const rows = await sql`
       INSERT INTO public.planos_alimentares (
         paciente_id,
         conteudo
       ) VALUES (
         ${data.paciente_id},
-        ${typeof data.conteudo === 'string' ? JSON.parse(data.conteudo) : data.conteudo}
+        ${conteudoJson}
       )
       RETURNING *
     `;
@@ -557,5 +558,39 @@ export async function createPlanoAlimentar(data) {
   }
 }
 
+/**
+ * Atualiza o conteúdo de um plano alimentar existente
+ */
+export async function updatePlanoAlimentar(planoId, conteudo) {
+  if (!planoId || !conteudo) {
+    throw new Error('ID do plano e Conteúdo são obrigatórios.');
+  }
 
+  try {
+    const conteudoJson = typeof conteudo === 'string' ? JSON.parse(conteudo) : conteudo;
+    const rows = await sql`
+      UPDATE public.planos_alimentares
+      SET conteudo = ${conteudoJson}
+      WHERE id = ${planoId}
+      RETURNING *
+    `;
+    return rows[0] || null;
+  } catch (error) {
+    console.error('Error updating plano alimentar in Neon:', error);
+    throw error;
+  }
+}
 
+/**
+ * Exclui um plano alimentar do paciente
+ */
+export async function deletePlanoAlimentar(planoId) {
+  if (!planoId) return false;
+  try {
+    await sql`DELETE FROM public.planos_alimentares WHERE id = ${planoId}`;
+    return true;
+  } catch (error) {
+    console.error('Error deleting plano alimentar in Neon:', error);
+    throw error;
+  }
+}

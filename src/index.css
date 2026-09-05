@@ -4686,6 +4686,1052 @@ body::before {
   }
 }
 
+/* ==========================================================================
+   ALERT BANNER COM AÇÕES DE ERRO / IA FALLBACK
+   ========================================================================== */
+.alert-content-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1;
+}
+
+.alert-action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+  margin-right: 0.5rem;
+}
+
+.btn-alert-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-try-again {
+  background: rgba(245, 158, 11, 0.2);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #fbbf24;
+}
+
+.btn-try-again:hover {
+  background: rgba(245, 158, 11, 0.35);
+  transform: translateY(-1px);
+}
+
+.btn-manual-fallback {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+.btn-manual-fallback:hover {
+  background: rgba(255, 255, 255, 0.22);
+  transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   AI GENERATING BANNER & PULSE ANIMATION
+   ========================================================================== */
+.ai-generating-banner {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(16, 185, 129, 0.1) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(245, 158, 11, 0.08);
+}
+
+.ai-generating-banner::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+  animation: shineSweep 2s infinite ease-in-out;
+}
+
+@keyframes shineSweep {
+  0% { left: -100%; }
+  100% { left: 200%; }
+}
+
+.ai-generating-spinner-box {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: rgba(245, 158, 11, 0.2);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.ai-sparkle-spin {
+  color: #fbbf24;
+  animation: pulseSpin 3s ease-in-out infinite;
+}
+
+@keyframes pulseSpin {
+  0% { transform: scale(0.9) rotate(0deg); opacity: 0.8; }
+  50% { transform: scale(1.15) rotate(180deg); opacity: 1; }
+  100% { transform: scale(0.9) rotate(360deg); opacity: 0.8; }
+}
+
+.ai-pulse-ring {
+  position: absolute;
+  inset: -4px;
+  border-radius: 20px;
+  border: 2px solid #fbbf24;
+  opacity: 0.4;
+  animation: ringExpand 2s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+}
+
+@keyframes ringExpand {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  100% { transform: scale(1.3); opacity: 0; }
+}
+
+.ai-generating-info {
+  flex: 1;
+}
+
+.ai-generating-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.725rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.18);
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+  margin-bottom: 0.4rem;
+}
+
+.live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #fbbf24;
+  box-shadow: 0 0 8px #fbbf24;
+  animation: blink 1.2s infinite ease-in-out;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.ai-generating-msg {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 0.25rem;
+  transition: all 0.3s ease;
+}
+
+.ai-generating-sub {
+  font-size: 0.825rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+/* ==========================================================================
+   HEADER ACTIONS GROUP & BOTOES
+   ========================================================================== */
+.planos-header-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.btn-manual-plano-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.65rem 1.15rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-md);
+  color: #f4f4f5;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-manual-plano-secondary:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+.btn-manual-plano-secondary.btn-lg {
+  padding: 0.85rem 1.5rem;
+  font-size: 0.95rem;
+}
+
+.empty-planos-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+/* ==========================================================================
+   CARDS DO HISTÓRICO DE PLANOS
+   ========================================================================== */
+.plano-card-badges-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.plano-info-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+}
+
+.btn-edit-plano-action,
+.btn-delete-plano-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.btn-edit-plano-action:hover {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.35);
+  color: #60a5fa;
+}
+
+.btn-delete-plano-action:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #f87171;
+}
+
+/* ==========================================================================
+   PLANO ALIMENTAR EDITOR (7 ABAS × 5 REFEIÇÕES × 5 OPÇÕES)
+   ========================================================================== */
+.plano-editor-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 100%;
+}
+
+.plano-editor-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(18, 18, 21, 0.85);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.25rem;
+  gap: 1rem;
+}
+
+.plano-editor-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex: 1;
+}
+
+.plano-badge-ia {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  padding: 0.3rem 0.65rem;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+.plano-title-input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  font-size: 1.15rem;
+  font-weight: 700;
+  padding: 0.2rem 0.4rem;
+  width: 100%;
+  max-width: 520px;
+  outline: none;
+  transition: all var(--transition-fast);
+}
+
+.plano-title-input:focus {
+  border-bottom-color: #fbbf24;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.plano-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.btn-editor-utility {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.5rem 0.85rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.825rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-editor-utility:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.text-emerald {
+  color: #34d399;
+}
+
+/* Barra de Contexto do Paciente */
+.paciente-quick-context-bar {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  background: rgba(18, 18, 21, 0.96);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1.25rem;
+  font-size: 0.85rem;
+  flex-wrap: wrap;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(12px);
+}
+
+.context-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.context-label {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.context-tags {
+  color: #34d399;
+  font-weight: 600;
+}
+
+.context-tags.tag-amber {
+  color: #fbbf24;
+}
+
+.context-tags.tag-red {
+  color: #f87171;
+}
+
+/* Navegação por Abas dos 7 Dias da Semana */
+.plano-days-nav-wrapper {
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.plano-days-nav {
+  display: flex;
+  gap: 0.5rem;
+  min-width: max-content;
+}
+
+.plano-day-tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.65rem 1.15rem;
+  background: rgba(18, 18, 21, 0.96);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: left;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(12px);
+}
+
+.plano-day-tab-btn:hover {
+  background: rgba(28, 28, 34, 0.98);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+.plano-day-tab-btn.active {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: #fbbf24;
+  color: #ffffff;
+  box-shadow: 0 4px 20px rgba(245, 158, 11, 0.25), 0 0 0 1px #fbbf24;
+}
+
+.day-tab-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.plano-day-tab-btn.active .day-tab-icon {
+  background: rgba(245, 158, 11, 0.28);
+  color: #fbbf24;
+}
+
+.day-tab-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.day-name-label {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.day-options-count {
+  font-size: 0.725rem;
+  color: var(--text-secondary);
+}
+
+.plano-day-tab-btn.active .day-options-count {
+  color: #fbbf24;
+  font-weight: 600;
+}
 
 
+/* Painel do Dia Ativo */
+.plano-active-day-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
 
+.active-day-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 1rem;
+}
+
+.active-day-title h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 0.15rem;
+}
+
+.active-day-title p {
+  font-size: 0.825rem;
+  color: var(--text-secondary);
+}
+
+.btn-replicate-day {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.5rem 0.9rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-replicate-day:hover {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #fbbf24;
+}
+
+/* Grade das 5 Refeições */
+.meals-grid-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.meal-card-block {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  transition: all var(--transition-fast);
+}
+
+.meal-card-block:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.meal-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.meal-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.meal-icon-pill {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.meal-icon-pill.badge-amber {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fbbf24;
+}
+
+.meal-icon-pill.badge-emerald {
+  background: rgba(16, 185, 129, 0.18);
+  color: #34d399;
+}
+
+.meal-icon-pill.badge-blue {
+  background: rgba(59, 130, 246, 0.18);
+  color: #60a5fa;
+}
+
+.meal-icon-pill.badge-cyan {
+  background: rgba(6, 182, 212, 0.18);
+  color: #22d3ee;
+}
+
+.meal-icon-pill.badge-purple {
+  background: rgba(168, 85, 247, 0.18);
+  color: #c084fc;
+}
+
+.meal-heading {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.meal-sub-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.btn-add-meal-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.65rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.775rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-add-meal-option:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+}
+
+/* Linha de Inputs das Opções */
+.meal-options-inputs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.meal-option-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.option-badge-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 68px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0.45rem 0.55rem;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.meal-input-field {
+  flex: 1;
+  font-size: 0.875rem;
+  background: #121215;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 0.85rem;
+  color: #ffffff;
+  transition: all var(--transition-fast);
+}
+
+.meal-input-field:focus {
+  border-color: #fbbf24;
+  background: #18181b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+}
+
+.btn-remove-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.btn-remove-option:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #f87171;
+}
+
+/* Card de Orientações Gerais */
+.plano-general-obs-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.plano-editor-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(18, 18, 21, 0.85);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.5rem;
+}
+
+.btn-save-plano {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: #09090b;
+  font-weight: 700;
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.35);
+}
+
+.btn-save-plano:hover {
+  box-shadow: 0 6px 22px rgba(245, 158, 11, 0.5);
+  transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   MODAL VISUALIZADOR DE PLANO ESTRUTURADO (PROMPT 6)
+   ========================================================================== */
+.modal-dialog-card.modal-xl {
+  max-width: 880px;
+}
+
+.modal-plano-visualizer .visualizer-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-height: 75vh;
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
+.visualizer-obs-callout {
+  display: flex;
+  gap: 0.75rem;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1.15rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.visualizer-obs-callout strong {
+  color: #60a5fa;
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+/* Barra de Acesso Rápido no Visualizador */
+.vis-quick-jump-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.15rem;
+  background: #141417;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-md);
+  flex-wrap: wrap;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+.vis-quick-jump-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #fbbf24;
+  white-space: nowrap;
+}
+
+.vis-quick-pills-list {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.vis-quick-pill {
+  padding: 0.35rem 0.75rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  color: #f4f4f5;
+  font-size: 0.775rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.vis-quick-pill:hover {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: #fbbf24;
+  color: #fbbf24;
+  transform: translateY(-1px);
+}
+
+/* Stack Vertical dos Dias */
+.vis-dias-vertical-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  margin-top: 0.5rem;
+}
+
+.vis-dia-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  padding: 1.5rem;
+  background: rgba(14, 14, 17, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+}
+
+.vis-dia-header-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.vis-dia-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.vis-dia-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(245, 158, 11, 0.18);
+  border: 1px solid #fbbf24;
+  color: #ffffff;
+  font-size: 1.05rem;
+  font-weight: 800;
+  padding: 0.45rem 1rem;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 2px 10px rgba(245, 158, 11, 0.2);
+}
+
+.vis-dia-badge svg {
+  color: #fbbf24;
+}
+
+.vis-dia-sub {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.vis-dia-tag {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.1);
+  padding: 0.3rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+
+.visualizer-meals-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 1rem;
+}
+
+.vis-meal-card {
+  background: #121215;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-md);
+  padding: 1.1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+.vis-meal-header {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 0.65rem;
+}
+
+.vis-meal-header h5 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.vis-meal-hint {
+  font-size: 0.725rem;
+  color: var(--text-muted);
+}
+
+.vis-options-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.vis-option-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  font-size: 0.825rem;
+  line-height: 1.4;
+}
+
+.vis-op-num {
+  font-weight: 700;
+  color: #fbbf24;
+  white-space: nowrap;
+  font-size: 0.75rem;
+}
+
+.vis-op-text {
+  color: var(--text-primary);
+}
+
+.vis-option-empty {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.visualizer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.footer-left-actions,
+.footer-right-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+/* Modal do Visualizador de Plano */
+.modal-plano-visualizer {
+  max-width: 1100px !important;
+  width: 95vw !important;
+  max-height: 90vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  background: #0e0e11 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.9) !important;
+}
+
+.visualizer-body {
+  overflow-y: auto;
+  max-height: calc(90vh - 140px);
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* ==========================================================================
+   ESTILOS DE IMPRESSÃO (PDF / PRINT CARDÁPIO)
+   ========================================================================== */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  body::before {
+    display: none !important;
+  }
+
+  .perfil-topbar-nav,
+  .perfil-main-sections-bar,
+  .perfil-hero-right,
+  .plano-topbar-actions,
+  .plano-editor-footer,
+  .modal-dialog-footer,
+  .modal-close-btn,
+  .btn-editor-utility,
+  .sidebar-wrapper,
+  .btn-add-meal-option,
+  .btn-remove-option,
+  .btn-replicate-day {
+    display: none !important;
+  }
+
+  .modal-backdrop {
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+  }
+
+  .modal-dialog-card {
+    max-width: 100% !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    color: #000000 !important;
+  }
+
+  .vis-meal-card,
+  .meal-card-block {
+    border: 1px solid #cccccc !important;
+    background: #fafafa !important;
+    color: #000000 !important;
+    break-inside: avoid;
+  }
+
+  .vis-op-text,
+  .meal-heading,
+  .active-day-title h3 {
+    color: #000000 !important;
+  }
+
+  .vis-op-num {
+    color: #b45309 !important;
+  }
+}

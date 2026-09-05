@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   getPacienteById,
   updatePacienteCompleto,
@@ -7,6 +7,8 @@ import {
   createConsulta,
   deleteConsulta,
   getPlanosByPaciente,
+  createPlanoAlimentar,
+  deletePlanoAlimentar,
 } from '../services/neonDb';
 import {
   formatPhone,
@@ -16,6 +18,13 @@ import {
   getImcBadge,
   calculateWaterIntake,
 } from './NovoPacienteView';
+import {
+  PlanoAlimentarEditor,
+  criarPlanoVazio,
+  DIAS_SEMANA,
+  REFEICOES_CONFIG,
+} from './PlanoAlimentarEditor';
+
 
 import {
   User,
@@ -49,6 +58,9 @@ import {
   Eye,
   CalendarCheck,
   Percent,
+  Info,
+  Copy,
+  Printer,
 } from 'lucide-react';
 
 const OBJETIVOS_OPCOES = [
@@ -141,9 +153,17 @@ export function PacientePerfilView({
   const [consultaToDelete, setConsultaToDelete] = useState(null);
   const [deletingConsulta, setDeletingConsulta] = useState(false);
 
-  // Modal de Visualização de Plano Alimentar (Seção 3)
+  // Estados da Seção 3 — Planos Alimentares (Prompt 6)
   const [selectedPlano, setSelectedPlano] = useState(null);
-  const [showGerarPlanoModal, setShowGerarPlanoModal] = useState(false);
+  const [visualizerDiaIndex, setVisualizerDiaIndex] = useState(0);
+  const [copiedVisualizerText, setCopiedVisualizerText] = useState(false);
+  const [planoEmEdicao, setPlanoEmEdicao] = useState(null);
+  const [generatingIaPlan, setGeneratingIaPlan] = useState(false);
+  const [aiProgressMessage, setAiProgressMessage] = useState('');
+  const [savingPlano, setSavingPlano] = useState(false);
+  const [planoToDelete, setPlanoToDelete] = useState(null);
+  const [deletingPlano, setDeletingPlano] = useState(false);
+
 
   // Campos de Dados do Paciente (Seção 1 - Edição Direta)
   const [nome, setNome] = useState('');
@@ -424,6 +444,7 @@ export function PacientePerfilView({
     }
   };
 
+
   // Excluir Consulta
   const handleDeleteConsultaConfirm = async () => {
     if (!consultaToDelete) return;
@@ -442,6 +463,206 @@ export function PacientePerfilView({
       setConsultaToDelete(null);
     }
   };
+
+
+  // =========================================================================
+  // HANDLERS DA SEÇÃO 3 — PLANOS ALIMENTARES (PROMPT 6)
+  // =========================================================================
+
+  // Iniciar Geração de Plano Alimentar com IA
+  const handleGerarPlanoIa = async () => {
+    if (generatingIaPlan) return;
+    setGeneratingIaPlan(true);
+    setFeedback(null);
+    setAiProgressMessage('Buscando dados clínicos e histórico do paciente...');
+
+    // Mensagens dinâmicas com rotação periódica
+    const progressMessages = [
+      'Buscando dados cadastrais, objetivos e restrições...',
+      'Inteligência Artificial calculando metas e cardápio...',
+      'Montando combinações de alimentos típicos da culinária brasileira...',
+      'Estruturando as 5 refeições para os 7 dias da semana...',
+      'Finalizando plano semanal personalizado...',
+    ];
+    let msgIndex = 0;
+    const intervalTimer = setInterval(() => {
+      msgIndex = (msgIndex + 1) % progressMessages.length;
+      setAiProgressMessage(progressMessages[msgIndex]);
+    }, 2500);
+
+    try {
+      const pacientePayload = {
+        nome: nome.trim() || paciente.nome,
+        idade: calculatedAge,
+        sexo: sexo || paciente.sexo,
+        peso: pesoAtual ? Number(pesoAtual) : paciente.peso_inicial,
+        altura: altura ? Number(altura) : paciente.altura,
+        imc: calculatedIMC,
+        objetivos,
+        objetivo_texto: objetivoTexto,
+        nivel_atividade: nivelAtividade,
+        patologias,
+        restricoes_alimentares: restricoes,
+        alergias,
+        medicamentos,
+        suplementos,
+        refeicoes_por_dia: refeicoesPorDia,
+        horario_acorda: horarioAcorda,
+        horario_dorme: horarioDorme,
+        litros_agua: litrosAgua,
+        atividade_fisica: Boolean(atividadeFisica),
+        atividade_fisica_descricao: atividadeDescricao,
+        observacoes,
+        historico_consultas: consultas.map((c) => ({
+          data_consulta: c.data_consulta,
+          peso: c.peso,
+          observacoes: c.observacoes,
+        })),
+      };
+
+      const response = await fetch('/api/gerar-plano', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ paciente: pacientePayload }),
+      });
+
+      clearInterval(intervalTimer);
+
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson.error || `Erro de resposta da API (Status ${response.status})`);
+      }
+
+      const resData = await response.json();
+      if (!resData.success || !resData.data || !Array.isArray(resData.data.plano_semanal)) {
+        throw new Error(resData.error || 'A IA não retornou uma estrutura de plano alimentar válida.');
+      }
+
+      const planoGeradoFormatado = {
+        titulo: `Plano Alimentar Semanal (IA) — ${nome.trim() || paciente.nome}`,
+        observacoes: `Plano semanal elaborado com Inteligência Artificial baseado nos objetivos (${objetivos.join(', ') || 'reeducação alimentar'}) e restrições do paciente.`,
+        plano_semanal: resData.data.plano_semanal,
+      };
+
+      setPlanoEmEdicao(planoGeradoFormatado);
+      setFeedback({
+        type: 'success',
+        message: '✨ Plano alimentar semanal gerado com IA! Você pode editar qualquer refeição antes de salvar.',
+      });
+    } catch (err) {
+      clearInterval(intervalTimer);
+      console.error('Erro ao gerar plano alimentar com IA:', err);
+      setFeedback({
+        type: 'error',
+        message:
+          'Não foi possível gerar o plano com IA no momento. Deseja tentar novamente ou criar um Plano Manual?',
+        isAiError: true,
+      });
+    } finally {
+      setGeneratingIaPlan(false);
+    }
+  };
+
+  // Iniciar Criação Manual de Plano Alimentar
+  const handleIniciarPlanoManual = () => {
+    setPlanoEmEdicao(criarPlanoVazio(nome.trim() || paciente?.nome));
+    setFeedback(null);
+  };
+
+  // Salvar Plano Alimentar no Neon PostgreSQL
+  const handleSalvarPlano = async (planoData) => {
+    try {
+      setSavingPlano(true);
+      setFeedback(null);
+
+      const novoPlano = await createPlanoAlimentar({
+        paciente_id: pacienteId,
+        conteudo: planoData,
+      });
+
+      if (novoPlano) {
+        // Atualiza histórico em tempo real
+        const planosAtualizados = await getPlanosByPaciente(pacienteId);
+        setPlanos(planosAtualizados || []);
+        setPlanoEmEdicao(null);
+        setFeedback({
+          type: 'success',
+          message: 'Plano alimentar salvo com sucesso no Neon PostgreSQL!',
+        });
+      }
+    } catch (err) {
+      console.error('Erro ao salvar plano alimentar:', err);
+      setFeedback({
+        type: 'error',
+        message: 'Erro ao salvar plano alimentar no banco de dados Neon.',
+      });
+    } finally {
+      setSavingPlano(false);
+    }
+  };
+
+  // Excluir Plano Alimentar
+  const handleDeletePlanoConfirm = async () => {
+    if (!planoToDelete) return;
+    try {
+      setDeletingPlano(true);
+      const success = await deletePlanoAlimentar(planoToDelete.id);
+      if (success) {
+        setPlanos(planos.filter((p) => p.id !== planoToDelete.id));
+        setFeedback({ type: 'success', message: 'Plano alimentar removido com sucesso.' });
+      }
+    } catch (err) {
+      console.error('Erro ao excluir plano alimentar:', err);
+      setFeedback({ type: 'error', message: 'Erro ao excluir plano alimentar.' });
+    } finally {
+      setDeletingPlano(false);
+      setPlanoToDelete(null);
+    }
+  };
+
+  // Abrir Plano Existente para Edição / Nova Versão
+  const handleEditarPlano = (planoItem) => {
+    const parsed =
+      typeof planoItem.conteudo === 'string' ? JSON.parse(planoItem.conteudo) : planoItem.conteudo;
+    setPlanoEmEdicao(parsed);
+    setSelectedPlano(null);
+  };
+
+  // Copiar Conteúdo do Plano Formatado para o Visualizador
+  const handleCopyVisualizerText = (planoItem) => {
+    const conteudo =
+      typeof planoItem.conteudo === 'string' ? JSON.parse(planoItem.conteudo) : planoItem.conteudo;
+
+    let texto = `📋 *${conteudo.titulo || 'PLANO ALIMENTAR SEMANAL'}*\n👤 *Paciente:* ${paciente?.nome}\n`;
+    if (conteudo.observacoes) {
+      texto += `📝 *Orientações:* ${conteudo.observacoes}\n`;
+    }
+    texto += `\n${'='.repeat(35)}\n\n`;
+
+    if (Array.isArray(conteudo.plano_semanal)) {
+      conteudo.plano_semanal.forEach((diaObj) => {
+        texto += `🗓️ *${diaObj.dia.toUpperCase()}*\n`;
+        REFEICOES_CONFIG.forEach((ref) => {
+          const opcoes = (diaObj.refeicoes?.[ref.key] || []).filter((o) => o && o.trim());
+          if (opcoes.length > 0) {
+            texto += `  🔸 *${ref.label}:*\n`;
+            opcoes.forEach((op, idx) => {
+              texto += `     ${idx + 1}. ${op}\n`;
+            });
+          }
+        });
+        texto += `\n`;
+      });
+    }
+
+    navigator.clipboard.writeText(texto).then(() => {
+      setCopiedVisualizerText(true);
+      setTimeout(() => setCopiedVisualizerText(false), 3000);
+    });
+  };
+
 
   // Preparação dos dados para o Gráfico de Evolução de Peso
   const chartData = useMemo(() => {
@@ -577,13 +798,39 @@ export function PacientePerfilView({
       {/* Banner de Feedback/Toast */}
       {feedback && (
         <div className={`form-alert-banner alert-${feedback.type} fade-in`}>
-          {feedback.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
-          <span>{feedback.message}</span>
+          <div className="alert-content-row">
+            {feedback.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+            <span>{feedback.message}</span>
+          </div>
+
+          {feedback.isAiError && (
+            <div className="alert-action-buttons">
+              <button
+                type="button"
+                className="btn-alert-action btn-try-again"
+                onClick={handleGerarPlanoIa}
+                disabled={generatingIaPlan}
+              >
+                <Sparkles size={14} />
+                <span>Tentar com IA Novamente</span>
+              </button>
+              <button
+                type="button"
+                className="btn-alert-action btn-manual-fallback"
+                onClick={handleIniciarPlanoManual}
+              >
+                <Edit3 size={14} />
+                <span>Criar Plano Manual</span>
+              </button>
+            </div>
+          )}
+
           <button type="button" className="alert-close-btn" onClick={() => setFeedback(null)}>
             <X size={16} />
           </button>
         </div>
       )}
+
 
       {/* =======================================================================
           HERO CARD — CABEÇALHO DO PACIENTE COM MÉTRICAS RÁPIDAS
@@ -1893,95 +2140,207 @@ export function PacientePerfilView({
       )}
 
       {/* =======================================================================
-          SEÇÃO 3 — PLANOS ALIMENTARES (PROMPT 5)
-          - Botão "Gerar Plano Alimentar" bem visível
-          - Histórico de todos os planos salvos em ordem cronológica decrescente
-          - Visualização do conteúdo completo do plano
+          SEÇÃO 3 — PLANOS ALIMENTARES (PROMPT 6)
+          - Editor interativo em abas (7 dias × 5 refeições × 5 opções)
+          - Geração com Inteligência Artificial (Google Gemini)
+          - Histórico persistido no Neon PostgreSQL
+          - Visualizador estruturado completo
           ======================================================================= */}
       {activeSection === 'planos' && (
         <div className="perfil-section-content fade-in">
-          <div className="planos-section-card">
-            <div className="planos-section-header">
-              <div className="planos-title-group">
-                <Utensils size={20} className="icon-amber" />
-                <div>
-                  <h3 className="planos-main-title">Planos Alimentares Personalizados</h3>
-                  <p className="planos-sub-title">Prescrições dietéticas e diretrizes nutricionais elaboradas para o paciente</p>
+          {planoEmEdicao ? (
+            /* Modo de Edição Ativo (Plano Alimentar Editor) */
+            <PlanoAlimentarEditor
+              paciente={paciente}
+              planoInicial={planoEmEdicao}
+              onSave={handleSalvarPlano}
+              onCancel={() => setPlanoEmEdicao(null)}
+              saving={savingPlano}
+            />
+          ) : (
+            /* Modo de Exibição / Histórico de Planos */
+            <div className="planos-section-card">
+              <div className="planos-section-header">
+                <div className="planos-title-group">
+                  <Utensils size={20} className="icon-amber" />
+                  <div>
+                    <h3 className="planos-main-title">Planos Alimentares Personalizados</h3>
+                    <p className="planos-sub-title">
+                      Prescrições dietéticas semanais com cardápios gerados por IA ou formulados manualmente
+                    </p>
+                  </div>
+                </div>
+
+                {/* Botões de Ação em Destaque */}
+                <div className="planos-header-actions-group">
+                  <button
+                    type="button"
+                    className="btn-manual-plano-secondary"
+                    onClick={handleIniciarPlanoManual}
+                    disabled={generatingIaPlan}
+                    title="Criar um plano alimentar em branco manualmente"
+                  >
+                    <Plus size={16} />
+                    <span>Plano Manual</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="btn-gerar-plano-primary"
+                    onClick={handleGerarPlanoIa}
+                    disabled={generatingIaPlan}
+                    title="Gerar cardápio semanal completo via Inteligência Artificial"
+                  >
+                    {generatingIaPlan ? (
+                      <>
+                        <div className="btn-spinner" />
+                        <span>Gerando com IA...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles size={17} />
+                        <span>Gerar Plano com IA</span>
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
 
-              {/* Botão "Gerar Plano Alimentar" em Destaque */}
-              <button
-                type="button"
-                className="btn-gerar-plano-primary"
-                onClick={() => setShowGerarPlanoModal(true)}
-              >
-                <Sparkles size={17} />
-                <span>Gerar Plano Alimentar</span>
-              </button>
-            </div>
-
-            {/* Histórico de Planos Alimentares */}
-            {planos.length > 0 ? (
-              <div className="planos-history-grid">
-                {planos.map((plano, index) => {
-                  const conteudo = typeof plano.conteudo === 'string' ? JSON.parse(plano.conteudo) : plano.conteudo;
-                  const dataCriacao = formatDate(plano.created_at);
-
-                  return (
-                    <div key={plano.id || index} className="plano-history-card fade-in">
-                      <div className="plano-card-header">
-                        <div className="plano-tag-badge">
-                          <FileText size={14} />
-                          <span>Plano Alimentar #{planos.length - index}</span>
-                        </div>
-                        <span className="plano-date-stamp">{dataCriacao}</span>
-                      </div>
-
-                      <div className="plano-card-preview">
-                        <h4 className="plano-name-heading">
-                          {conteudo.titulo || conteudo.nome || `Prescrição Nutricional — ${paciente.nome}`}
-                        </h4>
-                        <p className="plano-summary-snippet">
-                          {conteudo.descricao || conteudo.resumo || (conteudo.refeicoes ? `${conteudo.refeicoes.length} refeições planejadas` : 'Plano alimentar personalizado com orientações e distribuição de macronutrientes.')}
-                        </p>
-                      </div>
-
-                      <div className="plano-card-footer">
-                        <button
-                          type="button"
-                          className="btn-view-plano-full"
-                          onClick={() => setSelectedPlano(plano)}
-                        >
-                          <Eye size={15} />
-                          <span>Ver Plano Completo</span>
-                        </button>
-                      </div>
+              {/* Overlay / Painel de Loading Dinâmico da IA */}
+              {generatingIaPlan && (
+                <div className="ai-generating-banner fade-in">
+                  <div className="ai-generating-spinner-box">
+                    <div className="ai-pulse-ring" />
+                    <Sparkles size={28} className="ai-sparkle-spin" />
+                  </div>
+                  <div className="ai-generating-info">
+                    <div className="ai-generating-tag">
+                      <span className="live-dot" />
+                      <span>Google Gemini IA em Execução</span>
                     </div>
-                  );
-                })}
-              </div>
-            ) : (
-              /* Mensagem Exata do Prompt 5 quando não houver planos salvos */
-              <div className="planos-empty-state-box">
-                <div className="empty-plano-icon-circle">
-                  <Utensils size={36} className="icon-amber" />
+                    <h4 className="ai-generating-msg">{aiProgressMessage}</h4>
+                    <p className="ai-generating-sub">
+                      Analisando peso ({pesoAtual || paciente.peso_inicial || '—'} kg), idade ({calculatedAge || '—'} anos),
+                      objetivos ({objetivos.length > 0 ? objetivos.join(', ') : 'Saúde geral'}) e restrições para montar o cardápio dos 7 dias.
+                    </p>
+                  </div>
                 </div>
-                <h4 className="empty-planos-msg">Nenhum plano alimentar gerado ainda</h4>
-                <p className="empty-planos-sub">
-                  Utilize o assistente de planejamento para prescrever a dieta com cálculo calórico e distribuição de refeições.
-                </p>
-                <button
-                  type="button"
-                  className="btn-gerar-plano-primary btn-lg"
-                  onClick={() => setShowGerarPlanoModal(true)}
-                >
-                  <Sparkles size={18} />
-                  <span>Gerar Plano Alimentar</span>
-                </button>
-              </div>
-            )}
-          </div>
+              )}
+
+              {/* Histórico de Planos Alimentares Salvos */}
+              {planos.length > 0 ? (
+                <div className="planos-history-grid">
+                  {planos.map((plano, index) => {
+                    const conteudo =
+                      typeof plano.conteudo === 'string' ? JSON.parse(plano.conteudo) : plano.conteudo;
+                    const dataCriacao = formatDate(plano.created_at);
+
+                    // Contagem de dias e refeições presentes
+                    const totalDias = Array.isArray(conteudo.plano_semanal)
+                      ? conteudo.plano_semanal.length
+                      : 7;
+
+                    return (
+                      <div key={plano.id || index} className="plano-history-card fade-in">
+                        <div className="plano-card-header">
+                          <div className="plano-tag-badge">
+                            <Sparkles size={13} />
+                            <span>Plano #{planos.length - index}</span>
+                          </div>
+                          <span className="plano-date-stamp">{dataCriacao}</span>
+                        </div>
+
+                        <div className="plano-card-preview">
+                          <h4 className="plano-name-heading">
+                            {conteudo.titulo || `Plano Alimentar — ${paciente.nome}`}
+                          </h4>
+                          <p className="plano-summary-snippet">
+                            {conteudo.observacoes ||
+                              `Prescrição dietética completa estruturada para ${totalDias} dias com 5 opções por refeição.`}
+                          </p>
+                        </div>
+
+                        <div className="plano-card-badges-row">
+                          <span className="plano-info-chip">
+                            <Calendar size={12} />
+                            {totalDias} dias da semana
+                          </span>
+                          <span className="plano-info-chip">
+                            <Utensils size={12} />
+                            5 refeições / dia
+                          </span>
+                        </div>
+
+                        <div className="plano-card-footer">
+                          <button
+                            type="button"
+                            className="btn-view-plano-full"
+                            onClick={() => {
+                              setSelectedPlano(plano);
+                              setVisualizerDiaIndex(0);
+                            }}
+                          >
+                            <Eye size={15} />
+                            <span>Ver Plano</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            className="btn-edit-plano-action"
+                            onClick={() => handleEditarPlano(plano)}
+                            title="Editar este plano ou salvar como nova versão"
+                          >
+                            <Edit3 size={15} />
+                          </button>
+
+                          <button
+                            type="button"
+                            className="btn-delete-plano-action"
+                            onClick={() => setPlanoToDelete(plano)}
+                            title="Excluir este plano do histórico"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                /* Mensagem quando não houver planos salvos */
+                <div className="planos-empty-state-box">
+                  <div className="empty-plano-icon-circle">
+                    <Utensils size={36} className="icon-amber" />
+                  </div>
+                  <h4 className="empty-planos-msg">Nenhum plano alimentar gerado ainda</h4>
+                  <p className="empty-planos-sub">
+                    Utilize a inteligência artificial para criar automaticamente um cardápio semanal completo com base nos dados e metas de <strong>{paciente.nome}</strong> ou comece manualmente.
+                  </p>
+                  <div className="empty-planos-actions-row">
+                    <button
+                      type="button"
+                      className="btn-manual-plano-secondary btn-lg"
+                      onClick={handleIniciarPlanoManual}
+                      disabled={generatingIaPlan}
+                    >
+                      <Plus size={18} />
+                      <span>Criar Plano Manual</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="btn-gerar-plano-primary btn-lg"
+                      onClick={handleGerarPlanoIa}
+                      disabled={generatingIaPlan}
+                    >
+                      <Sparkles size={18} />
+                      <span>Gerar Plano com IA</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -2232,74 +2591,233 @@ export function PacientePerfilView({
       )}
 
       {/* =======================================================================
-          MODAL: AVISO GERAR PLANO ALIMENTAR (PRÓXIMO PROMPT)
+          MODAL: VISUALIZADOR DE PLANO ALIMENTAR ESTRUTURADO (PROMPT 6)
           ======================================================================= */}
-      {showGerarPlanoModal && (
-        <div className="modal-backdrop fade-in" onClick={() => setShowGerarPlanoModal(false)}>
-          <div className="modal-dialog-card" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-dialog-header">
-              <div className="modal-header-icon bg-amber">
-                <Sparkles size={20} />
+      {selectedPlano && (() => {
+        let conteudo = {};
+        try {
+          conteudo =
+            typeof selectedPlano.conteudo === 'string'
+              ? JSON.parse(selectedPlano.conteudo)
+              : (selectedPlano.conteudo || {});
+        } catch {
+          conteudo = {};
+        }
+
+        const diasList = Array.isArray(conteudo.plano_semanal) ? conteudo.plano_semanal : [];
+        const diaAtualData =
+          diasList[visualizerDiaIndex] ||
+          diasList.find((d) => d?.dia?.toLowerCase().includes(DIAS_SEMANA[visualizerDiaIndex]?.toLowerCase().slice(0, 3))) ||
+          diasList[0] ||
+          { dia: DIAS_SEMANA[visualizerDiaIndex] || 'Segunda-feira', refeicoes: {} };
+
+        return (
+          <div className="modal-backdrop fade-in" onClick={() => setSelectedPlano(null)}>
+            <div className="modal-dialog-card modal-xl modal-plano-visualizer" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-dialog-header">
+                <div className="modal-header-icon bg-amber">
+                  <Utensils size={20} />
+                </div>
+                <div className="modal-header-text">
+                  <h3>{conteudo.titulo || `Plano Alimentar de ${paciente.nome}`}</h3>
+                  <p>Prescrito em {formatDate(selectedPlano.created_at)}</p>
+                </div>
+                <button
+                  type="button"
+                  className="modal-close-btn"
+                  onClick={() => setSelectedPlano(null)}
+                >
+                  <X size={18} />
+                </button>
               </div>
-              <div className="modal-header-text">
-                <h3>Gerador de Plano Alimentar</h3>
-                <p>Módulo de Inteligência Artificial para elaboração do plano</p>
+
+              <div className="modal-dialog-body visualizer-body">
+                {/* Orientações Gerais */}
+                {conteudo.observacoes && (
+                  <div className="visualizer-obs-callout">
+                    <Info size={18} className="icon-blue" />
+                    <div>
+                      <strong>Orientações e Recomendações:</strong>
+                      <p>{conteudo.observacoes}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Barra de Acesso Rápido aos Dias */}
+                <div className="vis-quick-jump-bar">
+                  <span className="vis-quick-jump-label">
+                    <Calendar size={14} /> Dias da Semana:
+                  </span>
+                  <div className="vis-quick-pills-list">
+                    {DIAS_SEMANA.map((nomeDia, idx) => (
+                      <button
+                        key={nomeDia}
+                        type="button"
+                        className="vis-quick-pill"
+                        onClick={() => {
+                          const el = document.getElementById(`vis-dia-section-${idx}`);
+                          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }}
+                      >
+                        <span>{nomeDia}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Lista Completa dos 7 Dias Estruturados em Sequência Vertical */}
+                <div className="vis-dias-vertical-stack">
+                  {DIAS_SEMANA.map((nomeDia, diaIdx) => {
+                    const diaObj =
+                      diasList[diaIdx] ||
+                      diasList.find((d) => d?.dia?.toLowerCase().includes(nomeDia.toLowerCase().slice(0, 3))) ||
+                      { dia: nomeDia, refeicoes: {} };
+
+                    return (
+                      <div
+                        key={nomeDia + diaIdx}
+                        id={`vis-dia-section-${diaIdx}`}
+                        className="vis-dia-section fade-in"
+                      >
+                        {/* Cabeçalho do Dia */}
+                        <div className="vis-dia-header-card">
+                          <div className="vis-dia-header-left">
+                            <div className="vis-dia-badge">
+                              <Calendar size={16} />
+                              <span>{nomeDia}</span>
+                            </div>
+                            <span className="vis-dia-sub">5 refeições estruturadas</span>
+                          </div>
+                          <span className="vis-dia-tag">Dia {diaIdx + 1} de 7</span>
+                        </div>
+
+                        {/* Grade das 5 Refeições deste Dia */}
+                        <div className="visualizer-meals-grid">
+                          {REFEICOES_CONFIG.map((refConfig) => {
+                            const Icon = refConfig.icon;
+                            const opcoes = (diaObj.refeicoes?.[refConfig.key] || []).filter(
+                              (o) => o && o.trim()
+                            );
+
+                            return (
+                              <div key={refConfig.key} className="vis-meal-card">
+                                <div className="vis-meal-header">
+                                  <div className={`meal-icon-pill ${refConfig.badgeColor}`}>
+                                    <Icon size={16} />
+                                  </div>
+                                  <div>
+                                    <h5>{refConfig.label}</h5>
+                                    <span className="vis-meal-hint">{refConfig.hint}</span>
+                                  </div>
+                                </div>
+
+                                <ul className="vis-options-list">
+                                  {opcoes.length > 0 ? (
+                                    opcoes.map((opcao, opIdx) => (
+                                      <li key={opIdx} className="vis-option-item">
+                                        <span className="vis-op-num">Opção {opIdx + 1}:</span>
+                                        <span className="vis-op-text">{opcao}</span>
+                                      </li>
+                                    ))
+                                  ) : (
+                                    <li className="vis-option-empty">Nenhum item definido para esta refeição.</li>
+                                  )}
+                                </ul>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-              <button type="button" className="modal-close-btn" onClick={() => setShowGerarPlanoModal(false)}>
-                <X size={18} />
-              </button>
-            </div>
-            <div className="modal-dialog-body" style={{ padding: '1.25rem 1.5rem', color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6' }}>
-              <p>
-                O motor gerador de dietas personalizadas com Inteligência Artificial será conectado na próxima etapa (Prompt 6).
-              </p>
-              <p style={{ marginTop: '0.75rem' }}>
-                Todos os dados clínicos de <strong>{paciente.nome}</strong> (peso, altura, objetivos, restrições e histórico de consultas) serão utilizados automaticamente como base para a formulação do cardápio!
-              </p>
-            </div>
-            <div className="modal-dialog-footer">
-              <button
-                type="button"
-                className="btn-primary-action"
-                onClick={() => setShowGerarPlanoModal(false)}
-              >
-                Entendido
-              </button>
+
+              <div className="modal-dialog-footer visualizer-footer">
+                <div className="footer-left-actions">
+                  <button
+                    type="button"
+                    className="btn-editor-utility"
+                    onClick={() => handleCopyVisualizerText(selectedPlano)}
+                  >
+                    {copiedVisualizerText ? (
+                      <>
+                        <CheckCircle2 size={16} className="icon-emerald" />
+                        <span className="text-emerald">Copiado!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={16} />
+                        <span>Copiar para WhatsApp</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="btn-editor-utility"
+                    onClick={() => window.print()}
+                  >
+                    <Printer size={16} />
+                    <span>Imprimir</span>
+                  </button>
+                </div>
+
+                <div className="footer-right-actions">
+                  <button
+                    type="button"
+                    className="btn-secondary-action"
+                    onClick={() => setSelectedPlano(null)}
+                  >
+                    Fechar
+                  </button>
+
+                  <button
+                    type="button"
+                    className="btn-primary-action"
+                    onClick={() => handleEditarPlano(selectedPlano)}
+                  >
+                    <Edit3 size={16} />
+                    <span>Editar este Plano</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* =======================================================================
-          MODAL: VISUALIZADOR DE PLANO ALIMENTAR COMPLETO
+          MODAL: EXCLUSÃO DE PLANO ALIMENTAR
           ======================================================================= */}
-      {selectedPlano && (
-        <div className="modal-backdrop fade-in" onClick={() => setSelectedPlano(null)}>
-          <div className="modal-dialog-card modal-lg" onClick={(e) => e.stopPropagation()}>
+      {planoToDelete && (
+        <div className="modal-backdrop fade-in" onClick={() => setPlanoToDelete(null)}>
+          <div className="modal-dialog-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-dialog-header">
-              <div className="modal-header-icon bg-amber">
-                <Utensils size={20} />
+              <div className="modal-header-icon bg-red">
+                <Trash2 size={20} />
               </div>
               <div className="modal-header-text">
-                <h3>Plano Alimentar de {paciente.nome}</h3>
-                <p>Prescrito em {formatDate(selectedPlano.created_at)}</p>
+                <h3>Excluir Plano Alimentar</h3>
+                <p>Tem certeza que deseja remover este plano alimentar do histórico de <strong>{paciente.nome}</strong>?</p>
               </div>
-              <button type="button" className="modal-close-btn" onClick={() => setSelectedPlano(null)}>
-                <X size={18} />
-              </button>
-            </div>
-            <div className="modal-dialog-body" style={{ padding: '1.5rem' }}>
-              <pre className="plano-json-view">
-                {JSON.stringify(typeof selectedPlano.conteudo === 'string' ? JSON.parse(selectedPlano.conteudo) : selectedPlano.conteudo, null, 2)}
-              </pre>
             </div>
             <div className="modal-dialog-footer">
               <button
                 type="button"
                 className="btn-secondary-action"
-                onClick={() => setSelectedPlano(null)}
+                onClick={() => setPlanoToDelete(null)}
+                disabled={deletingPlano}
               >
-                Fechar
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn-danger-action"
+                onClick={handleDeletePlanoConfirm}
+                disabled={deletingPlano}
+              >
+                {deletingPlano ? 'Excluindo...' : 'Sim, Excluir Plano'}
               </button>
             </div>
           </div>
@@ -2348,3 +2866,4 @@ export function PacientePerfilView({
     </div>
   );
 }
+
