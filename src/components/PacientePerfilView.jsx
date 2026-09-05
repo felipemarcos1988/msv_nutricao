@@ -23,6 +23,9 @@ import {
   criarPlanoVazio,
   DIAS_SEMANA,
   REFEICOES_CONFIG,
+  extrairCalorias,
+  calcularMediaCaloriasRefeicao,
+  calcularTotalCaloriasDia,
 } from './PlanoAlimentarEditor';
 
 
@@ -61,6 +64,7 @@ import {
   Info,
   Copy,
   Printer,
+  Flame,
 } from 'lucide-react';
 
 const OBJETIVOS_OPCOES = [
@@ -2673,6 +2677,8 @@ export function PacientePerfilView({
                       diasList.find((d) => d?.dia?.toLowerCase().includes(nomeDia.toLowerCase().slice(0, 3))) ||
                       { dia: nomeDia, refeicoes: {} };
 
+                    const totalCaloriasDiaVisualizer = calcularTotalCaloriasDia(diaObj?.refeicoes);
+
                     return (
                       <div
                         key={nomeDia + diaIdx}
@@ -2686,6 +2692,12 @@ export function PacientePerfilView({
                               <Calendar size={16} />
                               <span>{nomeDia}</span>
                             </div>
+                            {totalCaloriasDiaVisualizer > 0 && (
+                              <span className="vis-dia-total-kcal-badge" title="Soma estimada das 5 refeições do dia">
+                                <Flame size={13} />
+                                <span>Total do Dia: ~{totalCaloriasDiaVisualizer.toLocaleString('pt-BR')} kcal</span>
+                              </span>
+                            )}
                             <span className="vis-dia-sub">5 refeições estruturadas</span>
                           </div>
                           <span className="vis-dia-tag">Dia {diaIdx + 1} de 7</span>
@@ -2698,6 +2710,7 @@ export function PacientePerfilView({
                             const opcoes = (diaObj.refeicoes?.[refConfig.key] || []).filter(
                               (o) => o && o.trim()
                             );
+                            const mediaCaloriasVisualizer = calcularMediaCaloriasRefeicao(opcoes);
 
                             return (
                               <div key={refConfig.key} className="vis-meal-card">
@@ -2705,8 +2718,16 @@ export function PacientePerfilView({
                                   <div className={`meal-icon-pill ${refConfig.badgeColor}`}>
                                     <Icon size={16} />
                                   </div>
-                                  <div>
-                                    <h5>{refConfig.label}</h5>
+                                  <div className="vis-meal-title-group">
+                                    <div className="vis-meal-heading-row">
+                                      <h5>{refConfig.label}</h5>
+                                      {mediaCaloriasVisualizer > 0 && (
+                                        <span className="vis-meal-total-kcal-badge" title="Total calórico estimado para esta refeição">
+                                          <Flame size={11} />
+                                          <span>Total Refeição: ~{mediaCaloriasVisualizer} kcal</span>
+                                        </span>
+                                      )}
+                                    </div>
                                     <span className="vis-meal-hint">{refConfig.hint}</span>
                                   </div>
                                 </div>

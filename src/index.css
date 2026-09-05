@@ -5179,11 +5179,33 @@ body::before {
   padding-bottom: 1rem;
 }
 
+.active-day-title-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.2rem;
+}
+
 .active-day-title h3 {
   font-size: 1.25rem;
   font-weight: 700;
   color: #ffffff;
-  margin-bottom: 0.15rem;
+  margin: 0;
+}
+
+.day-total-kcal-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  background: rgba(245, 158, 11, 0.16);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: 20px;
+  font-size: 0.775rem;
+  font-weight: 700;
+  color: #fbbf24;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.15);
 }
 
 .active-day-title p {
@@ -5247,6 +5269,27 @@ body::before {
   gap: 0.75rem;
 }
 
+.meal-heading-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.15rem;
+}
+
+.meal-total-kcal-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.5rem;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 12px;
+  font-size: 0.725rem;
+  font-weight: 700;
+  color: #fbbf24;
+}
+
 .meal-icon-pill {
   width: 36px;
   height: 36px;
@@ -5287,6 +5330,7 @@ body::before {
   font-weight: 700;
   color: #ffffff;
   line-height: 1.2;
+  margin: 0;
 }
 
 .meal-sub-hint {
@@ -5573,6 +5617,20 @@ body::before {
   color: #fbbf24;
 }
 
+.vis-dia-total-kcal-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.75rem;
+  background: rgba(245, 158, 11, 0.16);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #fbbf24;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.15);
+}
+
 .vis-dia-sub {
   font-size: 0.85rem;
   color: var(--text-secondary);
@@ -5616,10 +5674,39 @@ body::before {
   padding-bottom: 0.65rem;
 }
 
+.vis-meal-title-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.vis-meal-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
 .vis-meal-header h5 {
   font-size: 0.95rem;
   font-weight: 700;
   color: #ffffff;
+  margin: 0;
+}
+
+.vis-meal-total-kcal-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.5rem;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 12px;
+  font-size: 0.725rem;
+  font-weight: 700;
+  color: #fbbf24;
 }
 
 .vis-meal-hint {

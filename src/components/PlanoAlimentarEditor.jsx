@@ -19,6 +19,7 @@ import {
   Info,
   ChevronRight,
   Edit3,
+  Flame,
 } from 'lucide-react';
 
 export const DIAS_SEMANA = [
@@ -68,6 +69,44 @@ export const REFEICOES_CONFIG = [
     hint: 'Refeição noturna nutritiva e leve',
   },
 ];
+
+/**
+ * Extrai o valor calórico numérico de um texto de opção de refeição (ex: "(~230 kcal)" -> 230)
+ */
+export function extrairCalorias(opcaoTexto) {
+  if (!opcaoTexto || typeof opcaoTexto !== 'string') return 0;
+  const match = opcaoTexto.match(/\((?:~?\s*)(\d+)\s*k?cal\)/i) || opcaoTexto.match(/\[(?:~?\s*)(\d+)\s*k?cal\]/i);
+  if (match && match[1]) {
+    return parseInt(match[1], 10);
+  }
+  const fallbackMatch = opcaoTexto.match(/(\d+)\s*k?cal/i);
+  return fallbackMatch ? parseInt(fallbackMatch[1], 10) : 0;
+}
+
+/**
+ * Calcula a média / total calórico representativo de uma refeição baseada nas opções preenchidas
+ */
+export function calcularMediaCaloriasRefeicao(opcoes) {
+  if (!Array.isArray(opcoes)) return 0;
+  const calorias = opcoes.map(extrairCalorias).filter((c) => c > 0);
+  if (calorias.length === 0) return 0;
+  const soma = calorias.reduce((acc, curr) => acc + curr, 0);
+  return Math.round(soma / calorias.length);
+}
+
+/**
+ * Calcula o total diário estimado somando o total de cada uma das 5 refeições
+ */
+export function calcularTotalCaloriasDia(refeicoes) {
+  if (!refeicoes || typeof refeicoes !== 'object') return 0;
+  let total = 0;
+  const chaves = ['cafe_da_manha', 'lanche_manha', 'almoco', 'lanche_tarde', 'jantar'];
+  chaves.forEach((key) => {
+    const media = calcularMediaCaloriasRefeicao(refeicoes[key]);
+    total += media;
+  });
+  return total;
+}
 
 /**
  * Cria a estrutura inicial padrão vazia para um plano de 7 dias com 5 refeições × 5 opções
@@ -342,6 +381,7 @@ export function PlanoAlimentarEditor({
                 }
               });
             }
+            const totalCaloriasDiaTab = calcularTotalCaloriasDia(diaObj?.refeicoes);
 
             return (
               <button
@@ -355,7 +395,11 @@ export function PlanoAlimentarEditor({
                 </div>
                 <div className="day-tab-text">
                   <span className="day-name-label">{nomeDia}</span>
-                  <span className="day-options-count">{totalOpcoesPreenchidas} opções</span>
+                  <span className="day-options-count">
+                    {totalCaloriasDiaTab > 0
+                      ? `~${totalCaloriasDiaTab.toLocaleString('pt-BR')} kcal`
+                      : `${totalOpcoesPreenchidas} opções`}
+                  </span>
                 </div>
               </button>
             );
@@ -365,22 +409,36 @@ export function PlanoAlimentarEditor({
 
       {/* Painel do Dia Ativo */}
       <div className="plano-active-day-panel">
-        <div className="active-day-header-row">
-          <div className="active-day-title">
-            <h3>{activeDiaData.dia}</h3>
-            <p>5 refeições estruturadas com 4 a 5 opções completas de alimentos por refeição</p>
-          </div>
+        {(() => {
+          const totalCaloriasDiaAtivo = calcularTotalCaloriasDia(activeDiaData?.refeicoes);
 
-          <button
-            type="button"
-            className="btn-replicate-day"
-            onClick={handleCopyDayToAll}
-            title="Replicar este cardápio para todos os outros dias da semana"
-          >
-            <Copy size={14} />
-            <span>Replicar {activeDiaData.dia} para Todos os Dias</span>
-          </button>
-        </div>
+          return (
+            <div className="active-day-header-row">
+              <div className="active-day-title">
+                <div className="active-day-title-badge-row">
+                  <h3>{activeDiaData.dia}</h3>
+                  {totalCaloriasDiaAtivo > 0 && (
+                    <span className="day-total-kcal-badge" title="Soma estimada das 5 refeições do dia">
+                      <Flame size={14} className="icon-amber" />
+                      <span>Total Estimado do Dia: ~{totalCaloriasDiaAtivo.toLocaleString('pt-BR')} kcal</span>
+                    </span>
+                  )}
+                </div>
+                <p>5 refeições estruturadas com 4 a 5 opções completas de alimentos por refeição</p>
+              </div>
+
+              <button
+                type="button"
+                className="btn-replicate-day"
+                onClick={handleCopyDayToAll}
+                title="Replicar este cardápio para todos os outros dias da semana"
+              >
+                <Copy size={14} />
+                <span>Replicar {activeDiaData.dia} para Todos os Dias</span>
+              </button>
+            </div>
+          );
+        })()}
 
         {/* Grade das 5 Refeições */}
         <div className="meals-grid-container">
@@ -389,6 +447,7 @@ export function PlanoAlimentarEditor({
             const opcoes = Array.isArray(activeDiaData.refeicoes[refConfig.key])
               ? activeDiaData.refeicoes[refConfig.key]
               : ['', '', '', '', ''];
+            const mediaCaloriasRefeicao = calcularMediaCaloriasRefeicao(opcoes);
 
             return (
               <div key={refConfig.key} className="meal-card-block fade-in">
@@ -399,7 +458,18 @@ export function PlanoAlimentarEditor({
                       <Icon size={18} />
                     </div>
                     <div>
-                      <h4 className="meal-heading">{refConfig.label}</h4>
+                      <div className="meal-heading-title-row">
+                        <h4 className="meal-heading">{refConfig.label}</h4>
+                        {mediaCaloriasRefeicao > 0 && (
+                          <span
+                            className="meal-total-kcal-badge"
+                            title="Total calórico estimado para esta refeição"
+                          >
+                            <Flame size={12} />
+                            <span>Total Refeição: ~{mediaCaloriasRefeicao} kcal</span>
+                          </span>
+                        )}
+                      </div>
                       <span className="meal-sub-hint">{refConfig.hint}</span>
                     </div>
                   </div>
