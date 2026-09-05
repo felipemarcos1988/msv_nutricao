@@ -2713,12 +2713,25 @@ export function PacientePerfilView({
 
                                 <ul className="vis-options-list">
                                   {opcoes.length > 0 ? (
-                                    opcoes.map((opcao, opIdx) => (
-                                      <li key={opIdx} className="vis-option-item">
-                                        <span className="vis-op-num">Opção {opIdx + 1}:</span>
-                                        <span className="vis-op-text">{opcao}</span>
-                                      </li>
-                                    ))
+                                    opcoes.map((opcao, opIdx) => {
+                                      const kcalMatch = opcao.match(/\((~?\s*\d+\s*k?cal)\)/i) || opcao.match(/\[(~?\s*\d+\s*k?cal)\]/i);
+                                      const textoPrincipal = kcalMatch ? opcao.replace(kcalMatch[0], '').trim() : opcao;
+                                      const kcalValor = kcalMatch ? kcalMatch[1].trim() : null;
+
+                                      return (
+                                        <li key={opIdx} className="vis-option-item">
+                                          <span className="vis-op-num">Opção {opIdx + 1}:</span>
+                                          <div className="vis-op-text-wrapper">
+                                            <span className="vis-op-main">{textoPrincipal}</span>
+                                            {kcalValor && (
+                                              <span className="vis-kcal-badge" title="Calorias estimadas da refeição">
+                                                🔥 {kcalValor}
+                                              </span>
+                                            )}
+                                          </div>
+                                        </li>
+                                      );
+                                    })
                                   ) : (
                                     <li className="vis-option-empty">Nenhum item definido para esta refeição.</li>
                                   )}

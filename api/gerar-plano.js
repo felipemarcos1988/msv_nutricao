@@ -74,27 +74,27 @@ export default async function handler(req, res) {
                   cafe_da_manha: {
                     type: SchemaType.ARRAY,
                     items: { type: SchemaType.STRING },
-                    description: 'Lista com pelo menos 4 a 5 opções completas, variadas e reais para o café da manhã',
+                    description: 'Lista com 4 a 5 opções completas, contendo quantidades/porções estimadas (g, colheres, fatias) e calorias estimadas no final (~XXX kcal)',
                   },
                   lanche_manha: {
                     type: SchemaType.ARRAY,
                     items: { type: SchemaType.STRING },
-                    description: 'Lista com pelo menos 4 a 5 opções completas, variadas e reais para o lanche da manhã',
+                    description: 'Lista com 4 a 5 opções completas, contendo quantidades/porções estimadas (g, unidades) e calorias estimadas no final (~XXX kcal)',
                   },
                   almoco: {
                     type: SchemaType.ARRAY,
                     items: { type: SchemaType.STRING },
-                    description: 'Lista com pelo menos 4 a 5 opções completas, variadas e reais para o almoço',
+                    description: 'Lista com 4 a 5 opções completas, contendo quantidades/porções estimadas (g, conchas, colheres) e calorias estimadas no final (~XXX kcal)',
                   },
                   lanche_tarde: {
                     type: SchemaType.ARRAY,
                     items: { type: SchemaType.STRING },
-                    description: 'Lista com pelo menos 4 a 5 opções completas, variadas e reais para o lanche da tarde',
+                    description: 'Lista com 4 a 5 opções completas, contendo quantidades/porções estimadas (g, fatias) e calorias estimadas no final (~XXX kcal)',
                   },
                   jantar: {
                     type: SchemaType.ARRAY,
                     items: { type: SchemaType.STRING },
-                    description: 'Lista com pelo menos 4 a 5 opções completas, variadas e reais para o jantar',
+                    description: 'Lista com 4 a 5 opções completas, contendo quantidades/porções estimadas (g, pratos) e calorias estimadas no final (~XXX kcal)',
                   },
                 },
                 required: ['cafe_da_manha', 'lanche_manha', 'almoco', 'lanche_tarde', 'jantar'],
@@ -108,7 +108,7 @@ export default async function handler(req, res) {
     };
 
     const promptText = `Você é um nutricionista clínico profissional especialista na culinária e rotina brasileira.
-Gere um plano alimentar semanal completo, saudável e diversificado com base nos dados do paciente fornecidos abaixo.
+Gere um plano alimentar semanal completo, saudável, diversificado e com controle calórico/porções com base nos dados do paciente fornecidos abaixo.
 
 Dados do Paciente (Metas, Alergias, Restrições e Histórico):
 ${dadosFormatados}
@@ -120,6 +120,7 @@ ${dadosFormatados}
 - Utilize alimentos comuns, acessíveis e culturalmente aceitos no Brasil.
 - Evite repetições monótonas de alimentos nos dias seguidos.
 - REGRA OBRIGATÓRIA DE QUANTIDADE DE OPÇÕES: Para CADA uma das 5 refeições (Café da Manhã, Lanche da Manhã, Almoço, Lanche da Tarde e Jantar) em CADA um dos 7 dias da semana, você DEVE gerar OBRIGATORIAMENTE entre 4 e 5 opções COMPLETAS, VARIADAS, REAIS E NUTRITIVAS de alimentos/refeições.
+- REGRA OBRIGATÓRIA DE QUANTIDADES E CALORIAS ESTIMADAS: Em CADA opção de CADA refeição, você DEVE OBRIGATORIAMENTE incluir as quantidades das porções (em gramas, colheres de sopa, fatias, unidades ou ml) E o valor calórico total estimado da opção entre parênteses no final da frase no formato (~XXX kcal).
 - NUNCA deixe menos de 4 opções e NUNCA responda com textos genéricos ou placeholders (como "Opção 1", "Opção 2", "Opção 3", "Opção 4", "Opção 5"). Cada item deve ser uma opção alimentar real e prática para o paciente.
 
 O formato do JSON retornado deve seguir exatamente esta estrutura:
@@ -129,39 +130,39 @@ O formato do JSON retornado deve seguir exatamente esta estrutura:
       "dia": "Segunda-feira",
       "refeicoes": {
         "cafe_da_manha": [
-          "2 ovos mexidos com tomate e orégano + 1 fatia de pão 100% integral + café preto sem açúcar",
-          "Crepioca de 1 ovo com 1 colher de sopa de goma de tapioca recheada com queijo branco + chá sem açúcar",
-          "1 pote de iogurte desnatado com 1 colher de sopa de sementes de chia e morangos picados",
-          "Mingau de aveia feito com água ou leite desnatado, canela e rodelas de banana",
-          "1 fatia de pão integral com pasta de ricota + 1 fatia de mamão com sementes de linhaça"
+          "2 ovos mexidos (100g) com tomate e orégano + 1 fatia de pão 100% integral (30g) + café preto sem açúcar (~230 kcal)",
+          "Crepioca (1 ovo + 1 colher de sopa de tapioca - 20g) recheada com queijo branco (30g) + chá verde sem açúcar (~210 kcal)",
+          "1 pote de iogurte natural desnatado (160g) com 1 colher de sopa de chia (15g) e 4 morangos picados (~190 kcal)",
+          "Mingau de aveia (30g de aveia + 150ml de leite desnatado ou vegetal) com canela e 1/2 banana fatiada (~240 kcal)",
+          "1 fatia de pão integral (30g) com 2 colheres de sopa de pasta de ricota + 1 fatia de mamão (100g) com linhaça (~220 kcal)"
         ],
         "lanche_manha": [
-          "1 maçã pequena com casca + 3 castanhas-do-pará",
-          "1 fatia média de melão com sementes de abóbora tostadas",
-          "1 pera média + 4 nozes",
-          "1 copo de água de coco + 1 fatia de queijo branco",
-          "1 cumbuca pequena de salada de frutas com aveia em flocos"
+          "1 maçã média com casca (130g) + 3 castanhas-do-pará (12g) (~160 kcal)",
+          "1 fatia média de melão (150g) com 1 colher de sopa de sementes de abóbora tostadas (10g) (~110 kcal)",
+          "1 pera média fresca (130g) + 4 nozes (15g) (~170 kcal)",
+          "1 copo de água de coco natural (200ml) + 1 fatia de queijo branco minas frescal (30g) (~140 kcal)",
+          "1 cumbuca de salada de frutas (150g) com 1 colher de sopa de aveia em flocos (15g) (~150 kcal)"
         ],
         "almoco": [
-          "Peito de frango grelhado (120g) + 3 colheres de sopa de arroz integral + 1 concha de feijão carioca + salada de alface, tomate e pepino",
-          "Filé de tilápia grelhada (130g) + purê de mandioquinha + brócolis ao vapor + salada verde",
-          "Carne moída magra refogada com abobrinha e cenoura + 2 colheres de arroz integral + salada de rúcula",
-          "Sobrecoxa de frango sem pele assada com ervas + 1 concha de feijão preto + couve refogada no alho",
-          "Omelete de legumes com espinafre e tomate + 1 batata doce média assada + salada de folhas"
+          "Peito de frango grelhado (120g) + 3 colheres de sopa de arroz integral (75g) + 1 concha de feijão carioca (80g) + salada de alface, tomate e pepino à vontade com azeite (~420 kcal)",
+          "Filé de tilápia grelhada (130g) + 2 colheres de purê de mandioquinha (80g) + brócolis ao vapor (100g) + salada verde (~380 kcal)",
+          "Carne moída magra refogada (110g) com abobrinha e cenoura + 3 colheres de arroz integral (75g) + salada de rúcula (~410 kcal)",
+          "Sobrecoxa de frango sem pele assada com ervas (120g) + 1 concha de feijão preto (80g) + couve refogada no alho (60g) (~390 kcal)",
+          "Omelete de 2 ovos com espinafre e tomate + 1 batata doce média assada (100g) + salada de folhas com azeite (~360 kcal)"
         ],
         "lanche_tarde": [
-          "1 tapioca pequena com ovo mexido ou queijo magro + café sem açúcar",
-          "1 fatia de pão integral com pasta de amendoim ou homus + chá verde",
-          "Iogurte natural sem açúcar com 1 colher de farinha de aveia e morangos",
-          "Mix de castanhas (3 castanhas de caju + 2 castanhas-do-pará) + 1 fruta da estação",
-          "Vitamina de leite desnatado ou vegetal batido com mamão e sementes de chia"
+          "1 tapioca pequena (30g de goma) com 1 ovo mexido ou 30g de queijo magro + café sem açúcar (~190 kcal)",
+          "1 fatia de pão integral (30g) com 1 colher de sopa de pasta de amendoim integral (15g) + chá verde (~180 kcal)",
+          "Iogurte natural sem açúcar (160g) com 1 colher de sopa de farinha de aveia (15g) e morangos picados (~170 kcal)",
+          "Mix de castanhas (3 castanhas de caju + 2 castanhas-do-pará - 20g) + 1 fruta da estação (~160 kcal)",
+          "Vitamina de leite desnatado ou vegetal (200ml) batido com 1 fatia de mamão (100g) e chia (~180 kcal)"
         ],
         "jantar": [
-          "Sopa nutritiva de legumes com frango desfiado e folhas verdes",
-          "Filé de peixe assado com legumes grelhados (abobrinha, berinjela e tomate) + salada de alface",
-          "Salada colorida completa com folhas, tomate, pepino, palmito e atum sólido em água",
-          "Omelete de 2 ovos com espinafre e queijo branco + salada de folhas verdes com azeite",
-          "Peito de frango em cubos grelhado com mix de legumes refogados no azeite"
+          "Sopa nutritiva de legumes com peito de frango desfiado (100g) e folhas verdes (300ml) (~260 kcal)",
+          "Filé de peixe assado (120g) com mix de legumes grelhados no azeite (abobrinha, berinjela e tomate - 150g) + salada de alface (~290 kcal)",
+          "Salada colorida completa com folhas, tomate, pepino, palmito e 1 lata de atum sólido em água (120g) com azeite (~270 kcal)",
+          "Omelete de 2 ovos com espinafre e queijo branco (30g) + salada de folhas verdes com azeite (~280 kcal)",
+          "Peito de frango em cubos grelhado (120g) com mix de legumes refogados no azeite (cenoura, brócolis e abobrinha - 150g) (~310 kcal)"
         ]
       }
     }
@@ -354,34 +355,34 @@ function normalizarPlanoSemanal(json) {
       if (opcoes.length < 4) {
         const sugestoesPorRefeicao = {
           cafe_da_manha: [
-            '2 ovos mexidos com orégano e 1 fatia de pão integral',
-            'Crepioca de 1 ovo com queijo branco e chia',
-            'Iogurte natural sem açúcar com frutas picadas e aveia',
-            'Mingau de aveia com canela e rodelas de banana',
+            '2 ovos mexidos (100g) com orégano + 1 fatia de pão integral (30g) + café sem açúcar (~230 kcal)',
+            'Crepioca (1 ovo + 1 colher de tapioca) com queijo branco (30g) e chia (~210 kcal)',
+            'Iogurte natural sem açúcar (160g) com frutas picadas (80g) e aveia (~190 kcal)',
+            'Mingau de aveia (30g) com leite desnatado (150ml), canela e 1/2 banana (~240 kcal)',
           ],
           lanche_manha: [
-            '1 maçã média com 3 castanhas-do-pará',
-            '1 fatia de melão ou mamão com sementes de chia',
-            '1 pote de iogurte desnatado',
-            '1 pera fresca com 4 nozes',
+            '1 maçã média (130g) com 3 castanhas-do-pará (12g) (~160 kcal)',
+            '1 fatia de melão ou mamão (150g) com sementes de chia (10g) (~120 kcal)',
+            '1 pote de iogurte natural desnatado (160g) (~90 kcal)',
+            '1 pera fresca (130g) com 4 nozes (15g) (~170 kcal)',
           ],
           almoco: [
-            'Peito de frango grelhado + 3 colheres de arroz integral + feijão + salada verde',
-            'Filé de peixe assado + purê de mandioquinha + legumes no vapor',
-            'Carne moída magra refogada com abobrinha + arroz integral + salada colorida',
-            'Omelete de forno com legumes + batata doce cozida + folhas verdes',
+            'Peito de frango grelhado (120g) + 3 colheres de arroz integral (75g) + feijão (80g) + salada verde (~420 kcal)',
+            'Filé de peixe assado (130g) + 2 colheres de purê de mandioquinha (80g) + legumes no vapor (~380 kcal)',
+            'Carne moída magra refogada (110g) com abobrinha + arroz integral + salada colorida (~410 kcal)',
+            'Omelete de 2 ovos com legumes + batata doce cozida (100g) + folhas verdes (~360 kcal)',
           ],
           lanche_tarde: [
-            '1 tapioca pequena com ovo ou queijo branco + chá',
-            'Vitamina de frutas com leite desnatado ou vegetal e chia',
-            'Mix de castanhas e nozes + 1 fruta da estação',
-            '1 fatia de pão integral com pasta de ricota e café',
+            '1 tapioca pequena (30g) com ovo ou queijo branco (30g) + chá sem açúcar (~190 kcal)',
+            'Vitamina de leite desnatado (200ml) com 1/2 banana e sementes de chia (~180 kcal)',
+            'Mix de castanhas e nozes (20g) + 1 fruta da estação (~170 kcal)',
+            '1 fatia de pão integral (30g) com pasta de ricota + café (~160 kcal)',
           ],
           jantar: [
-            'Sopa nutritiva de legumes com frango desfiado',
-            'Filé de tilápia grelhada com salada de folhas e tomate',
-            'Salada completa com atum sólido, palmito e azeite',
-            'Omelete de claras e legumes refogados no azeite',
+            'Sopa nutritiva de legumes com peito de frango desfiado (100g) (300ml) (~260 kcal)',
+            'Filé de tilápia grelhada (120g) com salada de folhas e legumes no azeite (~290 kcal)',
+            'Salada completa com 1 lata de atum em água (120g), palmito e azeite (~270 kcal)',
+            'Omelete de 2 ovos com espinafre e queijo branco (30g) refogados no azeite (~280 kcal)',
           ],
         };
 

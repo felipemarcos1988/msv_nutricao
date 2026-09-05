@@ -5327,6 +5327,13 @@ body::before {
   gap: 0.65rem;
 }
 
+.option-badge-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
 .option-badge-number {
   display: inline-flex;
   align-items: center;
@@ -5339,7 +5346,19 @@ body::before {
   border: 1px solid rgba(255, 255, 255, 0.08);
   padding: 0.45rem 0.55rem;
   border-radius: var(--radius-sm);
-  flex-shrink: 0;
+}
+
+.option-inline-kcal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.675rem;
+  font-weight: 700;
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
 }
 
 .meal-input-field {
@@ -5627,11 +5646,43 @@ body::before {
   font-weight: 700;
   color: #fbbf24;
   white-space: nowrap;
-  font-size: 0.75rem;
+  font-size: 0.775rem;
+  margin-top: 0.1rem;
+}
+
+.vis-op-text-wrapper {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.vis-op-main {
+  color: #f4f4f5;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.vis-kcal-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.15rem 0.45rem;
+  background: rgba(245, 158, 11, 0.18);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: 6px;
+  font-size: 0.725rem;
+  font-weight: 700;
+  color: #fbbf24;
+  white-space: nowrap;
+  box-shadow: 0 1px 6px rgba(245, 158, 11, 0.15);
 }
 
 .vis-op-text {
   color: var(--text-primary);
+  font-size: 0.85rem;
+  line-height: 1.45;
 }
 
 .vis-option-empty {

@@ -417,28 +417,42 @@ export function PlanoAlimentarEditor({
 
                 {/* Lista de Inputs das Opções */}
                 <div className="meal-options-inputs-list">
-                  {opcoes.map((opcaoTexto, opIdx) => (
-                    <div key={opIdx} className="meal-option-row">
-                      <span className="option-badge-number">Opção {opIdx + 1}</span>
-                      <input
-                        type="text"
-                        className="field-input meal-input-field"
-                        value={opcaoTexto}
-                        onChange={(e) => handleUpdateOption(refConfig.key, opIdx, e.target.value)}
-                        placeholder={`Descreva o item da opção ${opIdx + 1} (ex: 2 fatias de pão integral + 2 ovos mexidos + 1 xícara de café)`}
-                      />
-                      {opcoes.length > 1 && (
-                        <button
-                          type="button"
-                          className="btn-remove-option"
-                          onClick={() => handleRemoveOption(refConfig.key, opIdx)}
-                          title="Remover esta opção"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                  {opcoes.map((opcaoTexto, opIdx) => {
+                    const kcalMatch = opcaoTexto
+                      ? opcaoTexto.match(/\((~?\s*\d+\s*k?cal)\)/i) || opcaoTexto.match(/\[(~?\s*\d+\s*k?cal)\]/i)
+                      : null;
+                    const kcalValor = kcalMatch ? kcalMatch[1].trim() : null;
+
+                    return (
+                      <div key={opIdx} className="meal-option-row">
+                        <div className="option-badge-wrap">
+                          <span className="option-badge-number">Opção {opIdx + 1}</span>
+                          {kcalValor && (
+                            <span className="option-inline-kcal" title="Calorias estimadas">
+                              🔥 {kcalValor}
+                            </span>
+                          )}
+                        </div>
+                        <input
+                          type="text"
+                          className="field-input meal-input-field"
+                          value={opcaoTexto}
+                          onChange={(e) => handleUpdateOption(refConfig.key, opIdx, e.target.value)}
+                          placeholder={`Ex: 2 ovos mexidos (100g) + 1 fatia de pão integral (30g) + café sem açúcar (~230 kcal)`}
+                        />
+                        {opcoes.length > 1 && (
+                          <button
+                            type="button"
+                            className="btn-remove-option"
+                            onClick={() => handleRemoveOption(refConfig.key, opIdx)}
+                            title="Remover esta opção"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             );
