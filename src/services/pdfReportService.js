@@ -393,6 +393,296 @@ export async function gerarPlanoAlimentarPdf(plano, paciente = {}) {
   });
 
   // =========================================================================
+  // PÁGINA: GUIA DE RECEITAS PRÁTICAS FIT — PRATOS PRINCIPAIS
+  // =========================================================================
+  doc.addPage();
+
+  // Header da Página de Pratos FIT
+  doc.setFillColor(15, 23, 42); // #0f172a
+  doc.rect(0, 0, pageWidth, 14, 'F');
+
+  doc.setFillColor(16, 185, 129); // Faixa esmeralda #10b981
+  doc.rect(0, 14, pageWidth, 1, 'F');
+
+  if (logoBearBase64) {
+    try {
+      doc.addImage(logoBearBase64, 'PNG', margin, 2.5, 9, 9);
+    } catch (e) {
+      console.warn('Erro ao desenhar logo:', e);
+    }
+  }
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9.5);
+  doc.setTextColor(255, 255, 255);
+  doc.text('MSV NUTRIÇÃO • GUIA DE RECEITAS FIT EXCLUSIVAS', margin + 12, 9);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(203, 213, 225);
+  doc.text(`Paciente: ${nomePaciente}`, pageWidth - margin, 9, { align: 'right' });
+
+  const receitasPratosPrincipais = [
+    {
+      nome: 'Escondidinho Fit de Frango com Abóbora Cabotiá',
+      calorias: '~280 kcal / porção',
+      destaque: 'Rico em Fibras e Proteína Magra',
+      ingredientes:
+        '• 150g de peito de frango cozido e desfiado refogado com alho, cebola, tomate e cheiro-verde\n' +
+        '• 160g de abóbora cabotiá cozida no vapor e amassada com 1 col. (sopa) de creme de ricota light\n' +
+        '• 1 colher (sobremesa) de queijo parmesão ralado para gratinar\n' +
+        '• Sal, pimenta-do-reino e noz-moscada a gosto',
+      preparo:
+        '1. Em um refratário individual forrado, disponha o frango desfiado bem suculento.\n' +
+        '2. Cubra com o purê cremoso de abóbora temperado e salpique o queijo parmesão por cima.\n' +
+        '3. Leve ao forno pré-aquecido a 200°C (ou na Airfryer) por 12 a 15 minutos até dourar a superfície.',
+    },
+    {
+      nome: 'Panqueca Fit de Aveia com Patinho Moído e Espinafre',
+      calorias: '~295 kcal / porção',
+      destaque: 'Baixo Índice Glicêmico & Saciedade',
+      ingredientes:
+        '• Massa: 1 ovo inteiro + 2 col. (sopa) de farelo de aveia (20g) + 40ml de água ou leite desnatado + pitada de sal\n' +
+        '• Recheio: 110g de patinho moído refogado com alho, cebola, tomate em cubos e 1 xícara de folhas de espinafre fresco\n' +
+        '• Cobertura: 2 col. (sopa) de molho de tomate natural caseiro',
+      preparo:
+        '1. Bata os ingredientes da massa com um garfo e doure em frigideira antiaderente untada com gotas de azeite.\n' +
+        '2. Distribua o recheio de carne com espinafre sobre o disco de massa e enrole com cuidado.\n' +
+        '3. Cubra com o molho de tomate caseiro e orégano fresco.',
+    },
+    {
+      nome: 'Moqueca Leve de Tilápia com Leite de Coco Light',
+      calorias: '~305 kcal / porção',
+      destaque: 'Ômega 3 & Anti-inflamatório',
+      ingredientes:
+        '• 140g de filé de tilápia fresca em cubos médios\n' +
+        '• 1/2 pimentão amarelo em tiras + 1/2 tomate maduro fatiado + 1/4 de cebola em rodelas\n' +
+        '• 70ml de leite de coco light + 1 col. (chá) de azeite de oliva extravirgem\n' +
+        '• Suco de 1/2 limão, coentro fresco e sal a gosto',
+      preparo:
+        '1. Tempere os cubos de peixe com limão, alho e sal por 10 minutos.\n' +
+        '2. Em uma panela pequena, monte camadas alternadas com os vegetais e o peixe.\n' +
+        '3. Regue com o leite de coco light e o azeite. Tampe e cozinhe em fogo brando por 12 a 15 min. Finalize com coentro.',
+    },
+    {
+      nome: 'Strogonoff Fit de Frango Cremoso com Creme de Ricota',
+      calorias: '~270 kcal / porção',
+      destaque: 'Alto Teor de Proteína & Baixa Gordura',
+      ingredientes:
+        '• 140g de peito de frango em tiras ou cubos\n' +
+        '• 80g de cogumelos champignon frescos fatiados\n' +
+        '• 2 col. (sopa) de molho de tomate caseiro 100% natural + 1 col. (chá) de mostarda dijon\n' +
+        '• 2 col. (sopa) de creme de ricota light ou iogurte natural desnatado consistente',
+      preparo:
+        '1. Sele o frango na frigideira com alho e fio de azeite até dourar.\n' +
+        '2. Adicione os cogumelos, o molho de tomate e a mostarda. Cozinhe por 3 minutos.\n' +
+        '3. Desligue o fogo, incorpore o creme de ricota suavemente até obter consistência aveludada. Sirva com arroz integral.',
+    },
+  ];
+
+  const bodyRowsPratos = receitasPratosPrincipais.map((rec) => [
+    {
+      content: `${rec.nome.toUpperCase()}\n\n${rec.calorias}\n(${rec.destaque})`,
+      styles: {
+        fontStyle: 'bold',
+        halign: 'center',
+        valign: 'middle',
+        fillColor: [240, 253, 244],
+        textColor: [21, 128, 61],
+        fontSize: 7.8,
+      },
+    },
+    {
+      content: `INGREDIENTES:\n${rec.ingredientes}\n\nMODO DE PREPARO:\n${rec.preparo}`,
+      styles: {
+        fontSize: 7.6,
+        textColor: [30, 41, 59],
+        cellPadding: 3,
+        valign: 'middle',
+      },
+    },
+  ]);
+
+  autoTable(doc, {
+    startY: 19,
+    margin: { left: margin, right: margin, top: 19, bottom: 15 },
+    theme: 'grid',
+    head: [
+      [
+        {
+          content: '   PRATOS PRINCIPAIS FIT — EQUILÍBRIO, PROTEÍNA & SACIEDADE',
+          colSpan: 2,
+          styles: {
+            fillColor: [16, 185, 129],
+            textColor: [255, 255, 255],
+            fontStyle: 'bold',
+            fontSize: 8.8,
+            halign: 'left',
+            valign: 'middle',
+            cellPadding: 3.5,
+          },
+        },
+      ],
+    ],
+    body: bodyRowsPratos,
+    columnStyles: {
+      0: { cellWidth: 46 },
+      1: { cellWidth: 'auto' },
+    },
+    styles: {
+      lineColor: [203, 213, 225],
+      lineWidth: 0.25,
+    },
+    pageBreak: 'avoid',
+    rowPageBreak: 'avoid',
+  });
+
+  // =========================================================================
+  // PÁGINA: GUIA DE SOBREMESAS FIT & DOCES SAUDÁVEIS
+  // =========================================================================
+  doc.addPage();
+
+  // Header da Página de Sobremesas FIT
+  doc.setFillColor(15, 23, 42); // #0f172a
+  doc.rect(0, 0, pageWidth, 14, 'F');
+
+  doc.setFillColor(236, 72, 153); // Faixa rosa/berry #ec4899
+  doc.rect(0, 14, pageWidth, 1, 'F');
+
+  if (logoBearBase64) {
+    try {
+      doc.addImage(logoBearBase64, 'PNG', margin, 2.5, 9, 9);
+    } catch (e) {
+      console.warn('Erro ao desenhar logo:', e);
+    }
+  }
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9.5);
+  doc.setTextColor(255, 255, 255);
+  doc.text('MSV NUTRIÇÃO • SOBREMESAS FIT & DOCES SAUDÁVEIS', margin + 12, 9);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(203, 213, 225);
+  doc.text(`Paciente: ${nomePaciente}`, pageWidth - margin, 9, { align: 'right' });
+
+  const receitasSobremesas = [
+    {
+      nome: 'Mousse Fit de Cacau 100% Aveludado com Abacate',
+      calorias: '~155 kcal / porção',
+      destaque: 'Gorduras Boas & Antioxidantes',
+      ingredientes:
+        '• 1/2 abacate maduro médio (aprox. 90g)\n' +
+        '• 2 colheres (sopa) de cacau em pó 100% puro\n' +
+        '• 2 colheres (sopa) de leite desnatado ou leite de amêndoas\n' +
+        '• 1 colher (sopa) de adoçante natural (eritritol, xilitol ou stevia) + 3 gotas de essência de baunilha',
+      preparo:
+        '1. Coloque a polpa do abacate, o cacau, o leite vegetal, o adoçante e a baunilha no mixer ou processador.\n' +
+        '2. Bata por 2 minutos até formar uma textura sedosa e homogênea (o abacate não deixa gosto residual).\n' +
+        '3. Despeje em uma taça e leve à geladeira por 30 minutos antes de saborear.',
+    },
+    {
+      nome: 'Gelato Cremoso Fit de Banana com Pasta de Amendoim',
+      calorias: '~145 kcal / porção',
+      destaque: 'Sem Adição de Açúcar & 100% Natural',
+      ingredientes:
+        '• 1 banana prata grande congelada em rodelas (100g)\n' +
+        '• 1 colher (chá) de pasta de amendoim integral 100% pura sem açúcar (10g)\n' +
+        '• 1 pitada generosa de canela em pó\n' +
+        '• 1 colher (sopa) de água ou leite desnatado para ajudar a bater',
+      preparo:
+        '1. Coloque a banana congelada no processador/liquidificador potente junto com a pasta de amendoim.\n' +
+        '2. Pulse até virar uma consistência de sorvete cremoso estilo gelato italiano.\n' +
+        '3. Polvilhe canela em pó por cima e consuma imediatamente.',
+    },
+    {
+      nome: 'Bolo de Caneca Fit de Cacau com Aveia (Pronto em 2 min)',
+      calorias: '~170 kcal / porção',
+      destaque: 'Mata a Vontade de Doce Rápido',
+      ingredientes:
+        '• 1 ovo inteiro\n' +
+        '• 1 colher (sopa) cheia de farelo de aveia (15g)\n' +
+        '• 1 colher (chá) de cacau em pó 100% + 1 colher (chá) de adoçante natural\n' +
+        '• 1 colher (sopa) de leite desnatado + 1/2 colher (café) de fermento químico',
+      preparo:
+        '1. Em uma caneca de louça, bata bem o ovo com um garfo.\n' +
+        '2. Acrescente a aveia, o cacau, o adoçante e o leite. Misture bem e adicione o fermento por último.\n' +
+        '3. Leve ao micro-ondas por 1 minuto e 30 segundos em potência alta. Pronto para consumir quente!',
+    },
+    {
+      nome: 'Chia Pudding Fit com Calda Fresca de Frutas Vermelhas',
+      calorias: '~135 kcal / porção',
+      destaque: 'Rico em Fibras Solúveis & Saciedade',
+      ingredientes:
+        '• 2 colheres (sopa) de sementes de chia (20g)\n' +
+        '• 100ml de leite vegetal (amêndoas/coco) ou leite desnatado + gotas de baunilha e adoçante\n' +
+        '• Calda: 4 morangos ou amoras frescas amassados com gotas de limão e 1 colher de água',
+      preparo:
+        '1. Em um pote de vidro com tampa, misture a chia, o leite, a baunilha e o adoçante.\n' +
+        '2. Mexa bem e deixe na geladeira por pelo menos 3 a 4 horas (ou de um dia para o outro) até hidratar.\n' +
+        '3. Cubra com a calda fresca de frutas vermelhas e sirva geladinho.',
+    },
+  ];
+
+  const bodyRowsSobremesas = receitasSobremesas.map((rec) => [
+    {
+      content: `${rec.nome.toUpperCase()}\n\n${rec.calorias}\n(${rec.destaque})`,
+      styles: {
+        fontStyle: 'bold',
+        halign: 'center',
+        valign: 'middle',
+        fillColor: [253, 242, 248],
+        textColor: [190, 24, 93],
+        fontSize: 7.8,
+      },
+    },
+    {
+      content: `INGREDIENTES:\n${rec.ingredientes}\n\nMODO DE PREPARO:\n${rec.preparo}`,
+      styles: {
+        fontSize: 7.6,
+        textColor: [30, 41, 59],
+        cellPadding: 3,
+        valign: 'middle',
+      },
+    },
+  ]);
+
+  autoTable(doc, {
+    startY: 19,
+    margin: { left: margin, right: margin, top: 19, bottom: 15 },
+    theme: 'grid',
+    head: [
+      [
+        {
+          content: '   SOBREMESAS FIT & DOCES SAUDÁVEIS — SACIEDADE SEM AÇÚCAR REFINADO',
+          colSpan: 2,
+          styles: {
+            fillColor: [236, 72, 153],
+            textColor: [255, 255, 255],
+            fontStyle: 'bold',
+            fontSize: 8.8,
+            halign: 'left',
+            valign: 'middle',
+            cellPadding: 3.5,
+          },
+        },
+      ],
+    ],
+    body: bodyRowsSobremesas,
+    columnStyles: {
+      0: { cellWidth: 46 },
+      1: { cellWidth: 'auto' },
+    },
+    styles: {
+      lineColor: [203, 213, 225],
+      lineWidth: 0.25,
+    },
+    pageBreak: 'avoid',
+    rowPageBreak: 'avoid',
+  });
+
+  // =========================================================================
   // NUMERAÇÃO DE PÁGINAS E RODAPÉ INSTITUCIONAL EM TODAS AS PÁGINAS
   // =========================================================================
   const totalPages = doc.internal.getNumberOfPages();
