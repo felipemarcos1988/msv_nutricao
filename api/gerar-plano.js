@@ -1,5 +1,3 @@
-import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
-
 /**
  * Serverless function para geração de plano alimentar semanal via Gemini AI
  * Suporta deploy na Vercel e execução via Vite Dev Server Middleware.
@@ -22,7 +20,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.statusCode = 405;
     res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify({ error: 'Método não permitido. Utilize POST.' }));
+    res.end(JSON.stringify({ success: false, error: 'Método não permitido. Utilize POST.' }));
     return;
   }
 
@@ -57,61 +55,6 @@ export default async function handler(req, res) {
     const paciente = body?.paciente || {};
     const dadosFormatados = formatarDadosPaciente(paciente);
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-
-    // Schema estruturado estrito para garantir formato 100% válido
-    const schema = {
-      type: SchemaType.OBJECT,
-      properties: {
-        plano_semanal: {
-          type: SchemaType.ARRAY,
-          description: 'Lista de planos diários para os 7 dias da semana (Segunda a Domingo)',
-          items: {
-            type: SchemaType.OBJECT,
-            properties: {
-              dia: {
-                type: SchemaType.STRING,
-                description: 'Nome do dia da semana (ex: Segunda-feira, Terça-feira, etc.)',
-              },
-              refeicoes: {
-                type: SchemaType.OBJECT,
-                properties: {
-                  cafe_da_manha: {
-                    type: SchemaType.ARRAY,
-                    items: { type: SchemaType.STRING },
-                    description: 'Lista com 4 a 5 opções completas, contendo quantidades/porções estimadas (g, colheres, fatias) e calorias estimadas no final (~XXX kcal)',
-                  },
-                  lanche_manha: {
-                    type: SchemaType.ARRAY,
-                    items: { type: SchemaType.STRING },
-                    description: 'Lista com 4 a 5 opções completas, contendo quantidades/porções estimadas (g, unidades) e calorias estimadas no final (~XXX kcal)',
-                  },
-                  almoco: {
-                    type: SchemaType.ARRAY,
-                    items: { type: SchemaType.STRING },
-                    description: 'Lista com 4 a 5 opções completas, contendo quantidades/porções estimadas (g, conchas, colheres) e calorias estimadas no final (~XXX kcal)',
-                  },
-                  lanche_tarde: {
-                    type: SchemaType.ARRAY,
-                    items: { type: SchemaType.STRING },
-                    description: 'Lista com 4 a 5 opções completas, contendo quantidades/porções estimadas (g, fatias) e calorias estimadas no final (~XXX kcal)',
-                  },
-                  jantar: {
-                    type: SchemaType.ARRAY,
-                    items: { type: SchemaType.STRING },
-                    description: 'Lista com 4 a 5 opções completas, contendo quantidades/porções estimadas (g, pratos) e calorias estimadas no final (~XXX kcal)',
-                  },
-                },
-                required: ['cafe_da_manha', 'lanche_manha', 'almoco', 'lanche_tarde', 'jantar'],
-              },
-            },
-            required: ['dia', 'refeicoes'],
-          },
-        },
-      },
-      required: ['plano_semanal'],
-    };
-
     const promptText = `Você é um nutricionista clínico profissional especialista na culinária e rotina brasileira.
 Gere um plano alimentar semanal completo, saudável, diversificado e com controle calórico/porções com base nos dados do paciente fornecidos abaixo.
 
@@ -128,7 +71,7 @@ ${dadosFormatados}
 - REGRA OBRIGATÓRIA DE QUANTIDADES E CALORIAS ESTIMADAS: Em CADA opção de CADA refeição, você DEVE OBRIGATORIAMENTE incluir as quantidades das porções (em gramas, colheres de sopa, fatias, unidades ou ml) E o valor calórico total estimado da opção entre parênteses no final da frase no formato (~XXX kcal).
 - NUNCA deixe menos de 4 opções e NUNCA responda com textos genéricos ou placeholders (como "Opção 1", "Opção 2", "Opção 3", "Opção 4", "Opção 5"). Cada item deve ser uma opção alimentar real e prática para o paciente.
 
-O formato do JSON retornado deve seguir exatamente esta estrutura:
+O formato do JSON retornado deve seguir exatamente esta estrutura com todos os 7 dias da semana:
 {
   "plano_semanal": [
     {
@@ -174,38 +117,41 @@ O formato do JSON retornado deve seguir exatamente esta estrutura:
   ]
 }`;
 
-
-    // Modelos oficiais suportados pelo Google Generative AI
+    // Modelos ativos e disponíveis no Google Generative AI
     const modelsToTry = [
-      'gemini-2.5-flash',
-      'gemini-2.0-flash',
-      'gemini-1.5-flash',
-      'gemini-1.5-pro',
-      'gemini-2.0-flash-lite',
-      'gemini-2.5-pro',
+      'gemini-3.5-flash',
+      'gemini-3.1-flash-lite-preview',
+      'gemini-3.1-flash-lite',
+      'gemini-3.7-flash',
+      'gemini-3.8-flash',
+      'gemini-3.6-flash',
     ];
 
     let lastError = null;
     let planoJson = null;
 
     for (const modelName of modelsToTry) {
-      // Até 2 tentativas por modelo com backoff
       for (let attempt = 1; attempt <= 2; attempt++) {
         try {
-          const model = genAI.getGenerativeModel({
-            model: modelName,
-            generationConfig: {
-              responseMimeType: 'application/json',
-              responseSchema: schema,
-              temperature: 0.4,
-            },
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: promptText }] }],
+              generationConfig: {
+                responseMimeType: 'application/json',
+                temperature: 0.3,
+              },
+            }),
           });
 
-          const result = await model.generateContent(promptText);
-          const response = await result.response;
-          let responseText = response.text();
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.error?.message || `Erro da API Google (${response.status})`);
+          }
 
-          // Limpeza de possíveis blocos de código markdown caso o modelo retorne
+          let responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
           responseText = responseText.trim();
           if (responseText.startsWith('```json')) {
             responseText = responseText.replace(/^```json\s*/i, '').replace(/```$/i, '').trim();
@@ -224,7 +170,13 @@ O formato do JSON retornado deve seguir exatamente esta estrutura:
           lastError = err;
 
           // Se for erro temporário de alta demanda (503/429), aguarda antes de tentar novamente
-          if (attempt === 1 && (err.message?.includes('503') || err.message?.includes('429') || err.message?.includes('high demand'))) {
+          if (
+            attempt === 1 &&
+            (err.message?.includes('503') ||
+              err.message?.includes('429') ||
+              err.message?.includes('high demand') ||
+              err.message?.includes('experiencing high demand'))
+          ) {
             await new Promise((r) => setTimeout(r, 1000));
           } else {
             break; // Passa para o próximo modelo da lista
@@ -236,7 +188,6 @@ O formato do JSON retornado deve seguir exatamente esta estrutura:
         break; // Sucesso com um dos modelos
       }
     }
-
 
     if (!planoJson || !Array.isArray(planoJson.plano_semanal)) {
       throw lastError || new Error('Não foi possível gerar a estrutura válida do plano semanal.');
@@ -413,4 +364,3 @@ function normalizarPlanoSemanal(json) {
     plano_semanal: planoSemanalCompleto,
   };
 }
-
