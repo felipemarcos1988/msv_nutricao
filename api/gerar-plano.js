@@ -26,14 +26,19 @@ export default async function handler(req, res) {
     return;
   }
 
-  const apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
+  const apiKey =
+    process.env.GEMINI_API_KEY ||
+    process.env.GOOGLE_API_KEY ||
+    process.env.VITE_GEMINI_API_KEY ||
+    process.env.VITE_GOOGLE_API_KEY;
 
   if (!apiKey) {
     res.statusCode = 500;
     res.setHeader('Content-Type', 'application/json');
     res.end(
       JSON.stringify({
-        error: 'Chave de API do Google Gemini (GOOGLE_API_KEY) não configurada no servidor.',
+        success: false,
+        error: 'Chave de API do Google Gemini (GEMINI_API_KEY) não configurada. Por favor, adicione sua chave no arquivo .env.',
       })
     );
     return;
@@ -170,13 +175,13 @@ O formato do JSON retornado deve seguir exatamente esta estrutura:
 }`;
 
 
-    // Modelos suportados e disponíveis para a chave do Google Generative AI
+    // Modelos oficiais suportados pelo Google Generative AI
     const modelsToTry = [
-      'gemini-3.7-flash',
-      'gemini-3.5-flash',
-      'gemini-flash-latest',
-      'gemini-3.6-flash',
-      'gemini-pro-latest',
+      'gemini-2.5-flash',
+      'gemini-2.0-flash',
+      'gemini-1.5-flash',
+      'gemini-1.5-pro',
+      'gemini-2.0-flash-lite',
       'gemini-2.5-pro',
     ];
 

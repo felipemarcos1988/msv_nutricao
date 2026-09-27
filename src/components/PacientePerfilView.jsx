@@ -562,10 +562,19 @@ export function PacientePerfilView({
     } catch (err) {
       clearInterval(intervalTimer);
       console.error('Erro ao gerar plano alimentar com IA:', err);
+      const isConfigError =
+        err.message &&
+        (err.message.includes('Chave de API') ||
+          err.message.includes('GEMINI_API_KEY') ||
+          err.message.includes('GOOGLE_API_KEY') ||
+          err.message.includes('não configurada') ||
+          err.message.includes('API key not valid'));
+
       setFeedback({
         type: 'error',
-        message:
-          'Não foi possível gerar o plano com IA no momento. Deseja tentar novamente ou criar um Plano Manual?',
+        message: isConfigError
+          ? `${err.message}`
+          : `Não foi possível gerar o plano com IA no momento (${err.message || 'Tempo limite esgotado'}). Deseja tentar novamente ou criar um Plano Manual?`,
         isAiError: true,
       });
     } finally {

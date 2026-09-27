@@ -22,10 +22,15 @@ dist/
 dist-ssr/
 *.local
 
-# Environment variables
+# Environment variables (Nunca subir ao Git/Vercel)
 .env
+.env.*
+!.env.example
 .env.local
 .env.*.local
+.env.development
+.env.test
+.env.production
 
 # Editor directories and files
 .vscode/*

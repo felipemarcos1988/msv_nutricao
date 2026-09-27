@@ -3,14 +3,15 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import handler from './api/gerar-plano.js';
 
-function apiDevServerPlugin(env) {
+function apiDevServerPlugin() {
   return {
     name: 'api-dev-server',
     configureServer(server) {
       server.middlewares.use('/api/gerar-plano', async (req, res) => {
-        // Injeta chave do Gemini carregada das variáveis de ambiente
-        process.env.GOOGLE_API_KEY = env.GOOGLE_API_KEY || process.env.GOOGLE_API_KEY || '';
-        process.env.GEMINI_API_KEY = env.GEMINI_API_KEY || process.env.GEMINI_API_KEY || '';
+        // Carrega dinamicamente variáveis de ambiente do .env para refletir alterações sem reiniciar servidor
+        const currentEnv = loadEnv(process.env.NODE_ENV || 'development', process.cwd(), '');
+        process.env.GOOGLE_API_KEY = currentEnv.GOOGLE_API_KEY || currentEnv.VITE_GOOGLE_API_KEY || process.env.GOOGLE_API_KEY || '';
+        process.env.GEMINI_API_KEY = currentEnv.GEMINI_API_KEY || currentEnv.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || '';
 
         if (req.method === 'OPTIONS') {
           res.setHeader('Access-Control-Allow-Origin', '*');
@@ -64,7 +65,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [
       react(),
-      apiDevServerPlugin(env),
+      apiDevServerPlugin(),
       VitePWA({
         registerType: 'autoUpdate',
         includeAssets: ['logo.png', 'logo-bear.png', 'bg-fruits.jpg', 'apple-touch-icon.png'],
